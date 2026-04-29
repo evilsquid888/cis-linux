@@ -101,3 +101,61 @@ function resetState() {
 }
 
 // Will be expanded in following tasks.
+
+// ============================================================
+//  Settings overlay — assessor / customer metadata
+// ============================================================
+
+function injectSettingsOverlay() {
+  if (document.getElementById("settings-overlay")) return;
+  const html = `
+    <div class="overlay" id="settings-overlay">
+      <div class="panel">
+        <h3 style="margin-top:0">Assessment Settings</h3>
+        <div class="form-group">
+          <label for="setting-assessor">Assessor name</label>
+          <input type="text" id="setting-assessor" placeholder="Jane Doe">
+        </div>
+        <div class="form-group">
+          <label for="setting-org">Assessor organization (optional)</label>
+          <input type="text" id="setting-org" placeholder="Contoso Consulting">
+        </div>
+        <div class="form-group">
+          <label for="setting-customer">Customer name</label>
+          <input type="text" id="setting-customer" placeholder="Acme Corp">
+        </div>
+        <div style="display:flex; justify-content:space-between; gap:8px; margin-top:24px;">
+          <button class="btn danger-btn" id="btn-reset">Reset all progress</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" id="btn-settings-cancel">Cancel</button>
+            <button class="btn btn-primary" id="btn-settings-save">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+
+  document.getElementById("btn-settings-cancel").onclick = () => closeSettings();
+  document.getElementById("btn-settings-save").onclick   = () => saveSettings();
+  document.getElementById("btn-reset").onclick           = () => resetState();
+}
+
+function openSettings() {
+  injectSettingsOverlay();
+  document.getElementById("setting-assessor").value = STATE.metadata.assessorName;
+  document.getElementById("setting-org").value      = STATE.metadata.assessorOrg;
+  document.getElementById("setting-customer").value = STATE.metadata.customerName;
+  document.getElementById("settings-overlay").classList.add("open");
+}
+function closeSettings() {
+  const o = document.getElementById("settings-overlay");
+  if (o) o.classList.remove("open");
+}
+function saveSettings() {
+  STATE.metadata.assessorName = document.getElementById("setting-assessor").value.trim();
+  STATE.metadata.assessorOrg  = document.getElementById("setting-org").value.trim();
+  const customer = document.getElementById("setting-customer").value.trim();
+  STATE.metadata.customerName = customer || "Acme Corp";
+  persist();
+  closeSettings();
+}
