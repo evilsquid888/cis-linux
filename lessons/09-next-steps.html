@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Next Steps — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 9 — Next Steps</h1>
+      <div class="lesson-meta"><span>Wrap-up</span><span>~5 min</span></div>
+
+      <p>You just did a real assessment in miniature. Here's where to go from here.</p>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">📚</span> The full benchmarks</h2>
+        <ul>
+          <li><a href="https://www.cisecurity.org/benchmark/ubuntu_linux" target="_blank">CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0</a> — free with email signup. ~250 controls; we covered ~12.</li>
+          <li><a href="../pdfs/DISA_STIG_Ubuntu_24.04.pdf">DISA STIG Ubuntu 24.04</a> (PDF, hosted with this site) — DoD's stricter cousin. Reading the V-IDs you missed is a fast way to find your weak spots.</li>
+        </ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🛠</span> Automate this audit</h2>
+        <ul>
+          <li><strong><a href="https://www.open-scap.org/" target="_blank">OpenSCAP / oscap</a></strong> — official open-source SCAP scanner. Runs CIS or STIG profiles against a host and emits HTML reports. Quick start:
+            <pre><code>sudo apt install -y libopenscap8 ssg-debderived
+sudo oscap xccdf eval --profile cis_level1_server \
+  --results /tmp/results.xml --report /tmp/report.html \
+  /usr/share/xml/scap/ssg/content/ssg-ubuntu2404-ds.xml</code></pre>
+          </li>
+          <li><strong><a href="https://cisofy.com/lynis/" target="_blank">Lynis</a></strong> — lightweight, no datastreams needed: <code>sudo lynis audit system</code>. Best for "give me a quick second opinion."</li>
+          <li><strong><a href="https://www.cisecurity.org/cybersecurity-tools/cis-cat-pro" target="_blank">CIS-CAT Pro</a></strong> — CIS's official scanner, members-only.</li>
+          <li><strong><a href="https://wazuh.com/" target="_blank">Wazuh</a></strong> — open-source SIEM with built-in CIS policy monitoring across many hosts.</li>
+        </ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🎓</span> Where to learn more about defensive assessments</h2>
+        <ul>
+          <li><a href="https://www.sans.org/cyber-security-courses/continuous-monitoring-security-operations/" target="_blank">SANS SEC511</a> — Continuous Monitoring &amp; Security Ops. The blue-team gold standard.</li>
+          <li><a href="https://www.giac.org/certifications/continuous-monitoring-gmon/" target="_blank">GIAC GMON</a> / <a href="https://www.giac.org/certifications/certified-enterprise-defender-gced/" target="_blank">GCED</a> — paired certifications.</li>
+          <li><a href="https://www.offsec.com/courses/sec-200/" target="_blank">OffSec OSDA</a> — hands-on defensive analyst cert.</li>
+          <li><a href="https://www.comptia.org/certifications/cybersecurity-analyst" target="_blank">CompTIA CySA+</a> — entry-level blue-team cert; good vocabulary builder.</li>
+          <li><a href="https://training.linuxfoundation.org/certification/linux-foundation-certified-system-administrator-lfcs/" target="_blank">LFCS</a> / <a href="https://www.redhat.com/en/services/certification/rhcsa" target="_blank">RHCSA</a> — Linux depth that pays for itself in every assessment.</li>
+        </ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔭</span> What a real engagement looks like</h2>
+        <p>This course was a taste. A real engagement covers the <em>full</em> ~250 controls of the benchmark, requires evidence collection (screenshots, command output, file hashes) for every finding, includes attestations from the system owners on accepted risks, and re-tests after remediation. The hard part isn't running the commands — it's the conversation with the customer about which findings they'll fix vs. accept, the documentation discipline that makes the report reproducible six months later, and the scoping conversation where you decide what's in and out before you ever ssh in.</p>
+        <p>Most assessor tooling can be learned in a weekend. The judgment to use it well is what gets paid for.</p>
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>initPage("09-next-steps");</script>
+</body>
+</html>
