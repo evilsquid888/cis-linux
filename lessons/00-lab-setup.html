@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab Setup — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 0 — Lab Setup</h1>
+      <div class="lesson-meta"><span>Pre-class</span><span>~5 min</span></div>
+      <p>You need an Ubuntu 24.04 LTS sandbox you can break, fix, and reset. Pick the path that fits your environment. <strong>Don't use Docker</strong> — see why below.</p>
+
+      <div class="path-cards">
+        <div class="path-card recommended">
+          <span class="pill">Recommended</span>
+          <h3>1. Multipass</h3>
+          <p>Canonical's free tool — one command, full Ubuntu VM, snapshot/restore built in.</p>
+          <pre><code># macOS:    brew install --cask multipass
+# Windows:  winget install Canonical.Multipass
+# Linux:    sudo snap install multipass
+
+multipass launch 24.04 --name cis-lab
+multipass shell cis-lab
+# inside the VM:
+sudo apt update &amp;&amp; sudo apt -y install ufw libpam-pwquality
+
+# snapshot a clean state to roll back to
+multipass stop cis-lab
+multipass snapshot cis-lab --name clean
+multipass start cis-lab</code></pre>
+          <p>To roll back: <code>multipass restore cis-lab.clean</code>. Cleanup: <code>multipass delete cis-lab &amp;&amp; multipass purge</code>.</p>
+        </div>
+
+        <div class="path-card">
+          <h3>2. Bring your own</h3>
+          <p>Already have an Ubuntu 24.04 box? Use it. Minimums:</p>
+          <ul>
+            <li>Ubuntu Server or Desktop 24.04 LTS</li>
+            <li>sudo access</li>
+            <li>You can break it without consequences (don't use prod)</li>
+            <li>Cloud (AWS/Azure/GCP), bare metal, or pre-existing VM all fine</li>
+          </ul>
+          <p>WSL2 works for most lessons but skip the UFW lesson — Windows Defender Firewall handles inbound.</p>
+        </div>
+
+        <div class="path-card">
+          <h3>3. Class lab</h3>
+          <p>Doing this as part of a class? Your instructor's slides have the join URL, credentials, and any class-specific setup notes.</p>
+          <p>If you can't find them, ask in the class chat or open <code>uname -a</code> on your handout's lab box and verify it's Ubuntu 24.04.</p>
+        </div>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">✅</span> Verify your lab</h2>
+        <p>Whichever path you chose, run these and confirm the output:</p>
+        <pre><code>uname -a
+# Linux ... 6.8.0-... #... Ubuntu ... aarch64/x86_64 GNU/Linux
+
+lsb_release -a
+# Distributor ID: Ubuntu
+# Description:    Ubuntu 24.04 LTS
+# Release:        24.04
+# Codename:       noble</code></pre>
+        <p>If anything looks off, fix it before moving on — every following lesson assumes a working Ubuntu 24.04 LTS shell with sudo.</p>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">Why not Docker?</div>
+        Containers share the host kernel. Many CIS controls — kernel sysctls, mount options, AppArmor profiles, auditd rules, partition layout — either don't apply or behave very differently inside a container. You'd be teaching yourself habits that don't transfer to real servers. Use a real VM.
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>initPage("00-lab-setup");</script>
+</body>
+</html>
