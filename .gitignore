@@ -10,3 +10,4 @@ CIS_Ubuntu_Linux_24.04_LTS_STIG_Benchmark_v1.0.0 (1).pdf
 
 # claude harness
 .claude/
+node_modules

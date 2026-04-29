@@ -15,7 +15,14 @@ Open `index.html` in any modern browser. No build step, no dependencies.
 ## Run tests
 
 ```bash
-node tests.js
+node tests.js                     # data + judgment regression tests (no deps)
+node smoke-test.mjs               # optional browser smoke test (requires playwright)
+```
+
+The smoke test walks every page in headless Chromium, asserts no console errors / network failures, and exercises checkbox persistence + Lesson 8 → report flow. To set it up:
+
+```bash
+npm i -D playwright && npx playwright install chromium
 ```
 
 ## What's covered
