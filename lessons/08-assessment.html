@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Final Assessment — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 8 — Final Assessment &amp; Customer Report</h1>
+      <div class="lesson-meta"><span>Wrap-up</span><span>~12 min</span></div>
+
+      <p>You've done the work — now it's time to review what you produced and ship a deliverable.</p>
+
+      <h2>Phase 1 — Review your engagement</h2>
+      <div id="review-host"></div>
+
+      <h2>Phase 2 — Assessor's verdict</h2>
+      <div id="judgment-host"></div>
+
+      <h2>Phase 3 — Generate the customer report</h2>
+      <div class="lesson-block">
+        <p>The report opens in a new tab as a stand-alone HTML page. You can show it on screen, share the URL on the local network, or save it via your browser. Customer name and assessor identity come from your settings — confirm them before generating.</p>
+        <button class="btn btn-primary" id="btn-generate-report">📄 Generate Customer Report →</button>
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script src="../assets/assessment.js"></script>
+  <script>
+    initPage("08-assessment");
+    renderEngagementReview();
+    renderJudgment();
+    document.getElementById("btn-generate-report").addEventListener("click", generateReport);
+  </script>
+</body>
+</html>
