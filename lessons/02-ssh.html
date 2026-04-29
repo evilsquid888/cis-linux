@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSH Hardening — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 2 — SSH Hardening</h1>
+      <div class="lesson-meta"><span>CIS §5.2</span><span>~10 min</span><span>4 controls</span></div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🎯</span> Why this matters</h2>
+        <p>SSH is the door to the box. The default OpenSSH config on Ubuntu permits root login, password authentication, and unlimited idle sessions — every one of those is an attacker's best friend. Brute-force scanning of port 22 happens constantly; a weak password on a root account is game-over.</p>
+        <p>This lesson tightens four CIS controls: disable root SSH login, disable password auth in favor of keys, drop MaxAuthTries from 6 to 4, and add an idle-session timeout. Each is one or two lines in <code>/etc/ssh/sshd_config</code>.</p>
+
+        <details class="refresher">
+          <summary>Refresher: what is sshd_config?</summary>
+          <p><code>/etc/ssh/sshd_config</code> configures the SSH <em>server</em> daemon (sshd). Edits take effect after <code>systemctl reload ssh</code>. The companion file <code>/etc/ssh/ssh_config</code> configures the SSH <em>client</em> — leave that alone.</p>
+        </details>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔍</span> Audit — find current state</h2>
+        <p>Use <code>sshd -T</code> to see the <strong>effective</strong> running config (file + defaults merged):</p>
+        <pre><code>sudo sshd -T | grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive'</code></pre>
+        <p>Note each value. CIS-recommended targets:</p>
+        <ul>
+          <li><code>permitrootlogin</code> = <strong>no</strong></li>
+          <li><code>passwordauthentication</code> = <strong>no</strong> (only after a working SSH key is in place)</li>
+          <li><code>maxauthtries</code> = <strong>4</strong></li>
+          <li><code>clientaliveinterval</code> = <strong>300</strong>, <code>clientalivecountmax</code> = <strong>2</strong></li>
+        </ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔧</span> Remediate</h2>
+
+        <div class="callout warn">
+          <div class="callout-title">Before you run this — don't lock yourself out</div>
+          <ol>
+            <li>Open a <strong>second terminal</strong> SSH'd into the lab. Keep this session alive while you change settings.</li>
+            <li>Confirm SSH key auth works <em>before</em> disabling passwords: <code>ssh -o PasswordAuthentication=no user@host echo OK</code>.</li>
+            <li>If you're on Multipass and don't have a key set up, skip the <code>passwordauthentication no</code> line — Multipass uses key auth by default for the <code>multipass shell</code> command, but local password access on the box itself can still be useful for recovery.</li>
+          </ol>
+        </div>
+
+        <p>Edit <code>/etc/ssh/sshd_config</code>:</p>
+        <pre><code>sudo sed -i \
+  -e 's/^#*PermitRootLogin .*/PermitRootLogin no/' \
+  -e 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' \
+  -e 's/^#*MaxAuthTries .*/MaxAuthTries 4/' \
+  -e 's/^#*ClientAliveInterval .*/ClientAliveInterval 300/' \
+  -e 's/^#*ClientAliveCountMax .*/ClientAliveCountMax 2/' \
+  /etc/ssh/sshd_config
+
+# Append any directive that wasn't already in the file
+grep -q '^PermitRootLogin'        /etc/ssh/sshd_config || echo 'PermitRootLogin no'         | sudo tee -a /etc/ssh/sshd_config
+grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo 'PasswordAuthentication no'  | sudo tee -a /etc/ssh/sshd_config
+grep -q '^MaxAuthTries'           /etc/ssh/sshd_config || echo 'MaxAuthTries 4'              | sudo tee -a /etc/ssh/sshd_config
+grep -q '^ClientAliveInterval'    /etc/ssh/sshd_config || echo 'ClientAliveInterval 300'     | sudo tee -a /etc/ssh/sshd_config
+grep -q '^ClientAliveCountMax'    /etc/ssh/sshd_config || echo 'ClientAliveCountMax 2'       | sudo tee -a /etc/ssh/sshd_config
+
+sudo systemctl reload ssh</code></pre>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">✅</span> Verify — confirm it stuck</h2>
+        <p>Re-run the audit:</p>
+        <pre><code>sudo sshd -T | grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive'
+
+# Expected:
+# permitrootlogin no
+# passwordauthentication no
+# maxauthtries 4
+# clientaliveinterval 300
+# clientalivecountmax 2</code></pre>
+        <p>Then tick each check below to record your finding:</p>
+        <ul class="check-list" id="checks-host"></ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+        <textarea id="lesson-notes" placeholder="What did you observe? Any anomalies? These notes appear under the SSH findings in the customer report."></textarea>
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>
+    initPage("02-ssh");
+    // Render this lesson's checks into #checks-host
+    const checks = LESSONS_BY_ID["02-ssh"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("02-ssh");
+  </script>
+</body>
+</html>
