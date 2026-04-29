@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STIG SSH Crypto — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 6 — STIG: Stricter SSH Crypto</h1>
+      <div class="lesson-meta"><span>DISA STIG</span><span>~8 min</span><span>3 controls</span></div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🎯</span> Why this matters</h2>
+        <p>OpenSSH's defaults negotiate from a wide menu of ciphers, MACs, and key-exchange algorithms — including some that are old, weak, or not FIPS-approved. STIG locks the menu down to a FIPS 140-3-approved subset. Concretely: AES-CTR only (no CBC, no CHACHA20), HMAC-SHA2-256/512 only (no MD5 or SHA1 variants), modern ECDH or DH-group-exchange-SHA256 only.</p>
+        <p>This pairs with Lesson 2 — same file, same reload command. You're hardening the same surface, deeper.</p>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔍</span> Audit</h2>
+        <pre><code>sudo sshd -T | grep -iE '^(ciphers|macs|kexalgorithms)'</code></pre>
+        <p>Compare to STIG-required values:</p>
+        <ul>
+          <li><code>ciphers aes256-ctr,aes192-ctr,aes128-ctr</code></li>
+          <li><code>macs hmac-sha2-512,hmac-sha2-256</code></li>
+          <li><code>kexalgorithms ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256</code></li>
+        </ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔧</span> Remediate</h2>
+        <pre><code>sudo tee -a /etc/ssh/sshd_config &gt;/dev/null &lt;&lt;'EOF'
+
+# DISA STIG — restrict SSH crypto to FIPS-approved subset
+Ciphers aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512,hmac-sha2-256
+KexAlgorithms ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256
+EOF
+
+sudo systemctl reload ssh</code></pre>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">✅</span> Verify</h2>
+        <pre><code>sudo sshd -T | grep -iE '^(ciphers|macs|kexalgorithms)'</code></pre>
+        <ul class="check-list" id="checks-host"></ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+        <textarea id="lesson-notes" placeholder="Note the original cipher list — useful evidence for the report."></textarea>
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>
+    initPage("06-stig-ssh-crypto");
+    const checks = LESSONS_BY_ID["06-stig-ssh-crypto"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("06-stig-ssh-crypto");
+  </script>
+</body>
+</html>
