@@ -12,7 +12,12 @@
     <div id="sidebar-host"></div>
     <main class="main">
       <h1>Lesson 3 — UFW Host Firewall</h1>
-      <div class="lesson-meta"><span>CIS §3.5</span><span>~7 min</span><span>4 controls</span></div>
+      <div class="lesson-meta">
+        <span>CIS §3.5</span>
+        <span>~7 min</span>
+        <span>4 controls</span>
+        <span><a href="03a-ufw-vm.html">→ try the in-browser Linux lab</a></span>
+      </div>
 
       <div class="lesson-block">
         <h2><span class="block-icon">🎯</span> Why this matters</h2>
@@ -20,6 +25,25 @@
         <details class="refresher">
           <summary>Refresher: default-deny vs default-allow</summary>
           <p>Default-deny means "drop anything not explicitly allowed." Default-allow means "permit anything not explicitly denied." Default-deny is safer because new services don't accidentally become reachable.</p>
+        </details>
+
+        <details class="refresher">
+          <summary>📖 Tools used in this lesson</summary>
+          <p><strong><code>ufw</code></strong> — Uncomplicated Firewall, Ubuntu's user-friendly front-end for nftables/iptables. Verbs you'll use: <code>status</code>, <code>default</code>, <code>allow</code>/<code>deny</code>, <code>enable</code>/<code>disable</code>. <a href="https://manpages.ubuntu.com/manpages/noble/en/man8/ufw.8.html" target="_blank" rel="noopener">man 8 ufw</a> · <a href="https://help.ubuntu.com/community/UFW" target="_blank" rel="noopener">Ubuntu UFW community docs</a></p>
+          <p><strong><code>iptables</code> / <code>nftables</code></strong> — kernel-level packet filters that UFW programs. Inspect what UFW actually loaded with <code>iptables -L -n -v</code> or <code>nft list ruleset</code>. Modern Ubuntu uses nftables under the hood. <a href="https://man7.org/linux/man-pages/man8/iptables.8.html" target="_blank" rel="noopener">man 8 iptables</a> · <a href="https://wiki.nftables.org/wiki-nftables/index.php/Main_Page" target="_blank" rel="noopener">nftables wiki</a></p>
+          <p><strong><code>ss</code></strong> — socket statistics. <code>ss -tlnp</code> = TCP, listening, numeric, with process. Sanity-check before firewalling: what's actually exposed? <a href="https://man7.org/linux/man-pages/man8/ss.8.html" target="_blank" rel="noopener">man 8 ss</a></p>
+          <p><strong><code>dpkg -l</code></strong> — Debian package list. The <code>ii</code> in column 1–2 means "installed, ok". <a href="https://man7.org/linux/man-pages/man1/dpkg.1.html" target="_blank" rel="noopener">man 1 dpkg</a></p>
+          <p><strong><code>apt</code></strong> — Debian/Ubuntu package manager. <a href="https://man7.org/linux/man-pages/man8/apt.8.html" target="_blank" rel="noopener">man 8 apt</a></p>
+        </details>
+
+        <details class="refresher">
+          <summary>📚 Reference material — going deeper</summary>
+          <ul>
+            <li><a href="https://www.cisecurity.org/benchmark/ubuntu_linux" target="_blank" rel="noopener">CIS Ubuntu Linux Benchmarks</a> — §3.5 covers host firewall</li>
+            <li><a href="https://ubuntu.com/server/docs/security-firewall" target="_blank" rel="noopener">Ubuntu Server Guide: Firewall</a> — official UFW intro</li>
+            <li><a href="https://wiki.nftables.org/wiki-nftables/index.php/Quick_reference-nftables_in_10_minutes" target="_blank" rel="noopener">nftables in 10 minutes</a> — when UFW isn't enough and you need raw rules</li>
+            <li><a href="https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-with-ufw-on-ubuntu" target="_blank" rel="noopener">DO: Setting Up UFW</a> — well-paced walkthrough</li>
+          </ul>
         </details>
       </div>
 

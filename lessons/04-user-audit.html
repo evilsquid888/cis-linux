@@ -12,11 +12,36 @@
     <div id="sidebar-host"></div>
     <main class="main">
       <h1>Lesson 4 — User Account Audit</h1>
-      <div class="lesson-meta"><span>CIS §5.3 + §5.4</span><span>~10 min</span><span>5 controls</span></div>
+      <div class="lesson-meta">
+        <span>CIS §5.3 + §5.4</span>
+        <span>~10 min</span>
+        <span>5 controls</span>
+        <span><a href="04a-user-audit-vm.html">→ try the in-browser Linux lab</a></span>
+      </div>
 
       <div class="lesson-block">
         <h2><span class="block-icon">🎯</span> Why this matters</h2>
         <p>The first thing any defender does on a new box is "who has access here?" A forgotten service account with a UID-0 alias, an empty-password row in /etc/shadow, a cron user with a valid login shell — these are some of the most common findings in real engagements. This is mostly read-only — you're auditing, not breaking.</p>
+
+        <details class="refresher">
+          <summary>📖 Tools and files used in this lesson</summary>
+          <p><strong><code>/etc/passwd</code></strong> — colon-separated <code>user:x:UID:GID:GECOS:home:shell</code>. Anyone with UID 0 has root privileges. <a href="https://man7.org/linux/man-pages/man5/passwd.5.html" target="_blank" rel="noopener">man 5 passwd</a></p>
+          <p><strong><code>/etc/shadow</code></strong> — hashed passwords + aging metadata, root-only readable. Empty hash field = no password required (critical finding). Leading <code>!</code> or <code>*</code> = locked. <a href="https://man7.org/linux/man-pages/man5/shadow.5.html" target="_blank" rel="noopener">man 5 shadow</a></p>
+          <p><strong><code>/etc/login.defs</code></strong> — system-wide login defaults including the password aging policy applied to newly created accounts. <a href="https://man7.org/linux/man-pages/man5/login.defs.5.html" target="_blank" rel="noopener">man 5 login.defs</a></p>
+          <p><strong><code>awk</code></strong> — field-aware text processor; <code>-F:</code> sets the colon as field separator so <code>$1</code> is the username, <code>$3</code> the UID, etc. <a href="https://man7.org/linux/man-pages/man1/awk.1p.html" target="_blank" rel="noopener">man 1 awk</a> · <a href="https://www.gnu.org/software/gawk/manual/" target="_blank" rel="noopener">GAWK manual</a></p>
+          <p><strong><code>passwd -l</code></strong> — locks an account by prefixing the shadow hash with <code>!</code>. <a href="https://man7.org/linux/man-pages/man1/passwd.1.html" target="_blank" rel="noopener">man 1 passwd</a></p>
+          <p><strong><code>usermod -s</code></strong> — change a user's login shell. Setting it to <code>/usr/sbin/nologin</code> is the standard way to revoke interactive access from system accounts. <a href="https://man7.org/linux/man-pages/man8/usermod.8.html" target="_blank" rel="noopener">man 8 usermod</a></p>
+          <p><strong><code>lastlog</code></strong> / <strong><code>last</code></strong> — read <code>/var/log/lastlog</code> and <code>/var/log/wtmp</code> respectively. <a href="https://man7.org/linux/man-pages/man8/lastlog.8.html" target="_blank" rel="noopener">man 8 lastlog</a> · <a href="https://man7.org/linux/man-pages/man1/last.1.html" target="_blank" rel="noopener">man 1 last</a></p>
+        </details>
+
+        <details class="refresher">
+          <summary>📚 Reference material — going deeper</summary>
+          <ul>
+            <li><a href="https://www.cisecurity.org/benchmark/ubuntu_linux" target="_blank" rel="noopener">CIS Ubuntu Linux Benchmarks</a> — §5.3 (PAM) and §5.4 (Users)</li>
+            <li><a href="https://wiki.archlinux.org/title/Users_and_groups" target="_blank" rel="noopener">Arch Wiki: Users and groups</a> — concise authoritative reference</li>
+            <li><a href="https://attack.mitre.org/techniques/T1136/" target="_blank" rel="noopener">MITRE ATT&amp;CK T1136 — Create Account</a> — attacker rationale for "extra UID-0 account"</li>
+          </ul>
+        </details>
       </div>
 
       <div class="lesson-block">

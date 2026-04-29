@@ -18,6 +18,26 @@
         <h2><span class="block-icon">🎯</span> Why this matters</h2>
         <p>OpenSSH's defaults negotiate from a wide menu of ciphers, MACs, and key-exchange algorithms — including some that are old, weak, or not FIPS-approved. STIG locks the menu down to a FIPS 140-3-approved subset. Concretely: AES-CTR only (no CBC, no CHACHA20), HMAC-SHA2-256/512 only (no MD5 or SHA1 variants), modern ECDH or DH-group-exchange-SHA256 only.</p>
         <p>This pairs with Lesson 2 — same file, same reload command. You're hardening the same surface, deeper.</p>
+
+        <details class="refresher">
+          <summary>📖 Tools and concepts used in this lesson</summary>
+          <p><strong>Cipher / MAC / KexAlgorithm</strong> — three sides of the SSH crypto triangle. <em>Cipher</em> encrypts the bulk traffic (AES-CTR). <em>MAC</em> (Message Authentication Code) authenticates each record (HMAC-SHA2). <em>KexAlgorithm</em> establishes the shared secret at session start (ECDH or DH-group-exchange-SHA256). Each is independently negotiated; weak choices in any of the three break the whole channel. <a href="https://www.openssh.com/specs.html" target="_blank" rel="noopener">OpenSSH protocol specs</a></p>
+          <p><strong>FIPS 140-3</strong> — NIST's standard for cryptographic modules used by US federal systems. Defines which algorithms and key sizes are "approved." STIG values are chosen to be the FIPS-approved subset of OpenSSH's algorithm catalog. <a href="https://csrc.nist.gov/publications/detail/fips/140/3/final" target="_blank" rel="noopener">FIPS 140-3 (NIST)</a></p>
+          <p><strong><code>sshd -T</code></strong> — dumps OpenSSH's effective runtime config. Re-reads <code>/etc/ssh/sshd_config</code> every invocation, so it doesn't require a reload to verify changes. <a href="https://man7.org/linux/man-pages/man8/sshd.8.html" target="_blank" rel="noopener">man 8 sshd</a> · <a href="https://man7.org/linux/man-pages/man5/sshd_config.5.html" target="_blank" rel="noopener">man 5 sshd_config</a></p>
+          <p><strong><code>tee -a</code></strong> — read stdin and append to a file (<code>-a</code>) while also passing it through. <code>sudo tee -a /etc/ssh/sshd_config &gt;/dev/null</code> is the standard idiom for "append to a root-owned file from a regular shell." <a href="https://man7.org/linux/man-pages/man1/tee.1.html" target="_blank" rel="noopener">man 1 tee</a></p>
+          <p><strong>Heredoc <code>&lt;&lt;'EOF'</code></strong> — single-quoted delimiter prevents shell expansion of <code>$vars</code> and backticks inside the body. Use whenever you're writing a config block that should ship verbatim. <a href="https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Here-Documents" target="_blank" rel="noopener">Bash heredoc reference</a></p>
+        </details>
+
+        <details class="refresher">
+          <summary>📚 Reference material — going deeper</summary>
+          <ul>
+            <li><a href="https://public.cyber.mil/stigs/downloads/" target="_blank" rel="noopener">DISA STIG downloads</a> — official Ubuntu 24.04 STIG and supporting documents</li>
+            <li><a href="https://infosec.mozilla.org/guidelines/openssh" target="_blank" rel="noopener">Mozilla OpenSSH Guidelines</a> — modern, opinionated alternative; "Modern" profile is roughly equivalent to STIG</li>
+            <li><a href="https://www.ssh-audit.com/" target="_blank" rel="noopener">ssh-audit</a> — automated cipher/MAC/KEX scanner; produces an A–F report against multiple compliance baselines</li>
+            <li><a href="https://stribika.github.io/2015/01/04/secure-secure-shell.html" target="_blank" rel="noopener">"Secure Secure Shell" (stribika)</a> — older but the clearest explanation of what each algorithm choice buys you</li>
+            <li><a href="https://www.iana.org/assignments/ssh-parameters/ssh-parameters.xhtml" target="_blank" rel="noopener">IANA SSH parameter registry</a> — the canonical list of algorithm names</li>
+          </ul>
+        </details>
       </div>
 
       <div class="lesson-block">

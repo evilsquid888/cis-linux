@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UFW Host Firewall (with embedded Linux) — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main main-lab">
+      <h1>Lesson 3a — UFW Host Firewall <span style="color: var(--accent); font-weight: 400;">· with embedded Linux</span></h1>
+      <div class="lesson-meta">
+        <span>CIS §3.5</span>
+        <span>~10 min</span>
+        <span>4 controls</span>
+        <span><a href="03-ufw.html" style="color: var(--text-muted);">← read-only edition</a></span>
+      </div>
+
+      <div class="lab-blurb">
+        Same content as Lesson 3, with a real Linux VM you can type into. The shell starts with <code>ufw</code> "installed" but inactive and default-allow — the bad starting state CIS wants you to fix. The stub <code>ufw</code> is stateful (rules persist across calls in <code>/var/lib/ufw/state</code>), so the audit/remediate/verify flow plays out exactly as it would on a real host.
+      </div>
+
+      <div class="lab-grid">
+
+        <div class="lab-instructions">
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🎯</span> Why this matters</h2>
+            <p>A host firewall is your last line of defense if something else goes wrong — an exposed service binds 0.0.0.0 by accident, a config drifts, a teammate runs <code>nc -lp 4444</code> for "just a minute." UFW (Uncomplicated Firewall) is Ubuntu's friendly nftables/iptables wrapper. CIS wants it installed, enabled, set to default-deny, with explicit allow rules only for what you actually need.</p>
+
+            <details class="refresher">
+              <summary>📖 Tools used in this lesson</summary>
+              <p><strong><code>ufw</code></strong> — Uncomplicated Firewall. A user-friendly front-end for managing nftables/iptables rules. Stores rules in <code>/etc/ufw/user.rules</code> (and v6 variants), kernel-loads them via <code>iptables-restore</code> or <code>nft -f</code>. The verbs you'll use: <code>status</code> (read), <code>default</code> (set policy), <code>allow</code>/<code>deny</code> (rules), <code>enable</code>/<code>disable</code> (toggle). <a href="https://manpages.ubuntu.com/manpages/noble/en/man8/ufw.8.html" target="_blank" rel="noopener">man 8 ufw</a> · <a href="https://help.ubuntu.com/community/UFW" target="_blank" rel="noopener">Ubuntu UFW community docs</a></p>
+              <p><strong><code>iptables</code> / <code>nftables</code></strong> — the kernel-level packet-filter engines that UFW programs. You can inspect what UFW actually loaded with <code>iptables -L -n -v</code> or <code>nft list ruleset</code>. Modern Ubuntu uses nftables under the hood by default. <a href="https://man7.org/linux/man-pages/man8/iptables.8.html" target="_blank" rel="noopener">man 8 iptables</a> · <a href="https://wiki.nftables.org/wiki-nftables/index.php/Main_Page" target="_blank" rel="noopener">nftables wiki</a></p>
+              <p><strong><code>ss</code></strong> — socket statistics. <code>ss -tlnp</code> lists TCP (<code>-t</code>) listening (<code>-l</code>) sockets with numeric addresses (<code>-n</code>) and the owning process (<code>-p</code>). Sanity-check before firewalling: what ports are *actually* exposed? <a href="https://man7.org/linux/man-pages/man8/ss.8.html" target="_blank" rel="noopener">man 8 ss</a></p>
+              <p><strong><code>dpkg -l</code></strong> — Debian package list. <code>dpkg -l ufw</code> verifies the package is installed and shows its version. Status column starts with <code>ii</code> for "installed and ok". <a href="https://man7.org/linux/man-pages/man1/dpkg.1.html" target="_blank" rel="noopener">man 1 dpkg</a></p>
+              <p><strong><code>apt</code></strong> — Debian/Ubuntu package manager front-end. <code>apt install -y ufw</code> installs without prompting. <a href="https://man7.org/linux/man-pages/man8/apt.8.html" target="_blank" rel="noopener">man 8 apt</a></p>
+            </details>
+
+            <details class="refresher">
+              <summary>📚 Reference material — going deeper</summary>
+              <ul>
+                <li><a href="https://www.cisecurity.org/benchmark/ubuntu_linux" target="_blank" rel="noopener">CIS Ubuntu Linux Benchmarks</a> — §3.5 covers host firewall</li>
+                <li><a href="https://ubuntu.com/server/docs/security-firewall" target="_blank" rel="noopener">Ubuntu Server Guide: Firewall</a> — official UFW intro</li>
+                <li><a href="https://wiki.nftables.org/wiki-nftables/index.php/Quick_reference-nftables_in_10_minutes" target="_blank" rel="noopener">nftables in 10 minutes</a> — useful when UFW isn't enough and you need to drop to raw rules</li>
+                <li><a href="https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-with-ufw-on-ubuntu" target="_blank" rel="noopener">DO: Setting Up UFW</a> — well-paced walkthrough</li>
+              </ul>
+            </details>
+
+            <details class="refresher">
+              <summary>Refresher: default-deny vs default-allow</summary>
+              <p>Default-deny means "drop anything not explicitly allowed." Default-allow means "permit anything not explicitly denied." Default-deny is safer because new services don't accidentally become reachable.</p>
+            </details>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔍</span> Audit</h2>
+            <p>Three quick checks: package installed, firewall active, and what's actually listening:</p>
+            <pre><code>dpkg -l ufw | tail -1</code></pre>
+            <button class="send-cmd" data-cmd="dpkg -l ufw | tail -1">▸ Send to VM</button>
+
+            <pre style="margin-top: 12px;"><code>sudo ufw status verbose</code></pre>
+            <button class="send-cmd" data-cmd="sudo ufw status verbose">▸ Send to VM</button>
+
+            <p>You're looking for: <code>ufw</code> installed, <code>Status: active</code>, default deny incoming, and only port 22 (SSH) allowed. The lab starts with the firewall <em>inactive</em> and default-<em>allow</em> — both findings.</p>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔧</span> Remediate</h2>
+            <div class="callout danger">
+              <div class="callout-title">Order matters — allow SSH FIRST</div>
+              If you enable default-deny before allowing SSH, you instantly lose your remote session on a real box. Run the <code>ufw allow 22/tcp</code> line first.
+            </div>
+            <pre><code>sudo apt install -y ufw                # already installed in the lab
+sudo ufw allow 22/tcp                  # &lt;-- BEFORE the deny
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw --force enable
+sudo systemctl enable ufw</code></pre>
+            <button class="send-cmd" data-cmd-key="remediate">▸ Send to VM (run all 6)</button>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">✅</span> Verify</h2>
+            <pre><code>sudo ufw status verbose</code></pre>
+            <button class="send-cmd" data-cmd="sudo ufw status verbose">▸ Send to VM</button>
+            <pre style="margin-top: 12px;"><code># Expected:
+#   Status: active
+#   Logging: on (low)
+#   Default: deny (incoming), allow (outgoing), disabled (routed)
+#   To              Action      From
+#   --              ------      ----
+#   22/tcp          ALLOW IN    Anywhere</code></pre>
+            <ul class="check-list" id="checks-host"></ul>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+            <textarea id="lesson-notes" placeholder="What did you observe? Were there other open ports?"></textarea>
+          </div>
+
+          <div id="lesson-footer-host"></div>
+        </div>
+
+        <aside class="vm-panel" id="vm-panel">
+          <div class="vm-toolbar">
+            <button id="vm-boot">▶ Boot VM</button>
+            <button id="vm-stage" disabled title="Reset to inactive default-allow">↻ Reset scenario</button>
+            <button id="vm-clear" disabled title="Clear the screen">⌫ Clear</button>
+            <span id="vm-status" class="vm-status s-stopped">stopped</span>
+          </div>
+          <div id="vm_screen" class="vm-screen" tabindex="0">
+            <div></div><canvas></canvas>
+          </div>
+          <div class="vm-input">
+            <span>$</span>
+            <input id="vm-input-line" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   placeholder="Type and press Enter to send to VM" disabled>
+          </div>
+          <div class="vm-hint">
+            Stub <code>ufw</code> stores state in <code>/var/lib/ufw/state</code>; rules persist across calls so audit ↔ remediate ↔ verify works the same way as on real Ubuntu. <code>apt</code>, <code>dpkg</code>, <code>systemctl</code> are also stubbed.
+          </div>
+        </aside>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/v86/libv86.js"></script>
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script src="../assets/v86-lab.js"></script>
+
+  <script>
+    initPage("03-ufw");
+    const checks = LESSONS_BY_ID["03-ufw"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("03-ufw");
+
+    // ────────────────────────────────────────────────────────────────
+    // Lesson 3 scenario: stateful ufw stub.
+    // State persists in /var/lib/ufw/state across calls so the
+    // audit/remediate/verify flow behaves like real ufw.
+    // ────────────────────────────────────────────────────────────────
+    const STUB_UFW = `#!/bin/sh
+# Lab-only stateful ufw stub.
+STATE=/var/lib/ufw/state
+[ -f "$STATE" ] || {
+  printf 'ENABLED=no\\nDEFAULT_INCOMING=allow\\nDEFAULT_OUTGOING=allow\\nRULES=\\n' > "$STATE"
+}
+. "$STATE"
+
+write_state() {
+  cat > "$STATE" <<EOF
+ENABLED=$ENABLED
+DEFAULT_INCOMING=$DEFAULT_INCOMING
+DEFAULT_OUTGOING=$DEFAULT_OUTGOING
+RULES=$RULES
+EOF
+}
+
+[ "$1" = "--force" ] && shift
+case "$1" in
+  status)
+    if [ "$ENABLED" = "yes" ]; then
+      if [ "$2" = "verbose" ]; then
+        echo "Status: active"
+        echo "Logging: on (low)"
+        echo "Default: $DEFAULT_INCOMING (incoming), $DEFAULT_OUTGOING (outgoing), disabled (routed)"
+        echo "New profiles: skip"
+        echo
+        echo "To                         Action      From"
+        echo "--                         ------      ----"
+        printf '%s' "$RULES" | tr ',' '\\n' | while IFS= read -r r; do
+          [ -z "$r" ] && continue
+          printf '%-26s %-11s %s\\n' "$r" "ALLOW IN" "Anywhere"
+        done
+      else
+        echo "Status: active"
+      fi
+    else
+      echo "Status: inactive"
+    fi
+    ;;
+  default)
+    case "$2" in
+      deny|allow|reject)
+        case "$3" in
+          incoming) DEFAULT_INCOMING="$2"; echo "Default incoming policy changed to '$2'"; echo "(be sure to update your rules accordingly)" ;;
+          outgoing) DEFAULT_OUTGOING="$2"; echo "Default outgoing policy changed to '$2'" ;;
+          *) echo "ERROR: invalid direction '$3'"; exit 1 ;;
+        esac
+        ;;
+      *) echo "ERROR: invalid policy '$2'"; exit 1 ;;
+    esac
+    write_state
+    ;;
+  allow)
+    rule="$2"
+    if [ -n "$RULES" ]; then RULES="$RULES,$rule"; else RULES="$rule"; fi
+    echo "Rule added"
+    write_state
+    ;;
+  deny|reject)
+    echo "Rule added"
+    ;;
+  enable)
+    ENABLED=yes
+    write_state
+    echo "Firewall is active and enabled on system startup"
+    ;;
+  disable)
+    ENABLED=no
+    write_state
+    echo "Firewall stopped and disabled on system startup"
+    ;;
+  *)
+    echo "Usage: ufw [--force] {status|default|allow|deny|enable|disable} ..."
+    ;;
+esac
+`;
+
+    function stage() {
+      return [
+        VmLab.commonScaffolding(),
+        VmLab.writeExecutable("/usr/local/bin/ufw", STUB_UFW),
+        // Wipe any previous state so re-stage really resets to inactive
+        "rm -f /var/lib/ufw/state",
+        "clear",
+        'echo "Lab ready. ufw stub installed at /usr/local/bin/ufw."',
+        'echo',
+        'echo "Try: dpkg -l ufw | tail -1   then   sudo ufw status verbose"',
+      ].join("\n");
+    }
+
+    function remediate() {
+      return [
+        "sudo apt install -y ufw",
+        "sudo ufw allow 22/tcp",
+        "sudo ufw default deny incoming",
+        "sudo ufw default allow outgoing",
+        "sudo ufw --force enable",
+        "sudo systemctl enable ufw",
+      ].join("\n");
+    }
+
+    VmLab.init({ stage, commandHandlers: { remediate } });
+  </script>
+</body>
+</html>

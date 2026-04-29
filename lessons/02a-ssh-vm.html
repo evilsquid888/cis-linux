@@ -5,172 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SSH Hardening (with embedded Linux) — CIS Linux Tutorial</title>
   <link rel="stylesheet" href="../assets/style.css">
-  <style>
-    /* Lab-edition layout: instructions on the left, VM panel sticky on the right.
-       Override the standard .main constraint so we get the full main column. */
-    .main-lab {
-      max-width: none;
-      padding: 24px 32px;
-    }
-    .lab-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 24px;
-      align-items: start;
-    }
-    @media (max-width: 1200px) {
-      .lab-grid { grid-template-columns: 1fr; }
-      .vm-panel { position: static !important; height: auto !important; }
-    }
-
-    .vm-panel {
-      position: sticky;
-      top: 72px;
-      align-self: start;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      max-height: calc(100vh - 88px);
-    }
-    .vm-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: var(--surface-2);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-    .vm-toolbar button {
-      background: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 6px 10px;
-      font-size: 13px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .vm-toolbar button:hover:not(:disabled) {
-      background: var(--accent-dim);
-      border-color: var(--accent);
-      color: white;
-    }
-    .vm-toolbar button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-    .vm-status {
-      margin-left: auto;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-muted);
-      padding: 4px 8px;
-      border-radius: var(--radius);
-      background: var(--surface);
-    }
-    .vm-status.s-stopped { color: var(--text-muted); }
-    .vm-status.s-booting { color: var(--warn); }
-    .vm-status.s-staging { color: var(--warn); }
-    .vm-status.s-ready   { color: var(--success); }
-    .vm-status.s-error   { color: var(--danger); }
-
-    /* v86 renders into screen_container — a div + canvas pair.
-       For text mode (which is what Buildroot Linux boots into) it fills the inner div. */
-    .vm-screen {
-      background: #000;
-      flex: 1;
-      min-height: 360px;
-      overflow: auto;
-      padding: 8px;
-      outline: 2px solid transparent;
-      outline-offset: -2px;
-      transition: outline-color 0.15s ease;
-    }
-    .vm-screen:focus,
-    .vm-screen.has-focus {
-      outline-color: var(--accent);
-    }
-    .vm-screen > div {
-      font-family: "SF Mono", Menlo, Consolas, monospace;
-      font-size: 13px;
-      line-height: 1.2;
-      color: #d6d6d6;
-      white-space: pre;
-    }
-    .vm-screen > canvas { display: block; }
-
-    /* Fallback input — always works, regardless of VM focus weirdness.
-       Single-line: enter sends + newline, shift+enter sends raw newline. */
-    .vm-input {
-      display: flex;
-      gap: 6px;
-      padding: 6px 8px;
-      background: var(--code-bg);
-      border-top: 1px solid var(--border);
-    }
-    .vm-input span {
-      color: var(--accent);
-      font-family: "SF Mono", Menlo, Consolas, monospace;
-      font-size: 13px;
-      align-self: center;
-    }
-    .vm-input input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      font-family: "SF Mono", Menlo, Consolas, monospace;
-      font-size: 13px;
-      outline: none;
-    }
-    .vm-input input::placeholder { color: var(--text-muted); opacity: 0.6; }
-    .vm-input input:disabled { opacity: 0.4; }
-
-    .vm-hint {
-      padding: 8px 12px;
-      font-size: 12px;
-      color: var(--text-muted);
-      background: var(--surface-2);
-      border-top: 1px solid var(--border);
-    }
-    .vm-hint code {
-      background: var(--code-bg);
-      padding: 1px 5px;
-      border-radius: 3px;
-    }
-
-    /* Make code blocks in the instruction column slightly tighter so things fit */
-    .lab-instructions pre { font-size: 12.5px; }
-
-    /* "Send to VM" button next to copyable commands — small affordance */
-    .send-cmd {
-      display: inline-block;
-      margin-top: 6px;
-      padding: 3px 8px;
-      font-size: 11px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--accent);
-      cursor: pointer;
-    }
-    .send-cmd:hover { border-color: var(--accent); }
-    .send-cmd:disabled { opacity: 0.3; cursor: not-allowed; }
-
-    .lab-blurb {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      padding: 12px 16px;
-      border-radius: var(--radius);
-      margin-bottom: 16px;
-    }
-  </style>
 </head>
 <body>
   <div id="header-host"></div>
@@ -186,7 +20,7 @@
       </div>
 
       <div class="lab-blurb">
-        Same content as Lesson 2, with a real Linux VM you can type into. Click <strong>▶ Boot VM</strong> on the right (about 3 seconds to boot). The shell starts with a deliberately weak <code>/etc/ssh/sshd_config</code> plus stub <code>sshd</code>, <code>sudo</code>, and <code>systemctl</code> shims so the canonical CIS audit commands (<code>sudo sshd -T</code>, <code>systemctl reload ssh</code>) actually work end-to-end.
+        Same content as Lesson 2, with a real Linux VM you can type into. Click <strong>▶ Boot VM</strong> on the right (about 5 seconds to boot + stage). The shell starts with a deliberately weak <code>/etc/ssh/sshd_config</code> plus stub <code>sshd</code> / <code>sudo</code> / <code>systemctl</code> shims so the canonical CIS audit commands actually work end-to-end.
       </div>
 
       <div class="lab-grid">
@@ -198,6 +32,25 @@
             <h2><span class="block-icon">🎯</span> Why this matters</h2>
             <p>SSH is the door to the box. The default OpenSSH config on Ubuntu permits root login, password authentication, and unlimited idle sessions — every one of those is an attacker's best friend. Brute-force scanning of port 22 happens constantly; a weak password on a root account is game-over.</p>
             <p>This lesson tightens four CIS controls: disable root SSH login, disable password auth in favor of keys, drop MaxAuthTries from 6 to 4, and add an idle-session timeout. Each is one or two lines in <code>/etc/ssh/sshd_config</code>.</p>
+
+            <details class="refresher">
+              <summary>📖 Tools used in this lesson</summary>
+              <p><strong><code>sshd</code></strong> — OpenSSH server daemon. Reads <code>/etc/ssh/sshd_config</code> at startup and on <code>SIGHUP</code>. The flag <code>sshd -T</code> dumps the *effective* runtime config (file values merged with compile-time defaults) — the canonical "what would the daemon actually do" view CIS auditors use. <a href="https://man7.org/linux/man-pages/man8/sshd.8.html" target="_blank" rel="noopener">man 8 sshd</a> · <a href="https://man7.org/linux/man-pages/man5/sshd_config.5.html" target="_blank" rel="noopener">man 5 sshd_config</a> · <a href="https://www.openssh.com/manual.html" target="_blank" rel="noopener">OpenSSH manual index</a></p>
+              <p><strong><code>sed</code></strong> — stream editor. The remediate block uses <code>sed -i 's/old/new/'</code> to do in-place find-and-replace across the config. The <code>^#*</code> in the patterns matches "zero or more leading <code>#</code>" so the same expression handles both already-set and commented-out directives. <a href="https://man7.org/linux/man-pages/man1/sed.1p.html" target="_blank" rel="noopener">man 1 sed</a> · <a href="https://www.gnu.org/software/sed/manual/sed.html" target="_blank" rel="noopener">GNU sed manual</a></p>
+              <p><strong><code>grep</code></strong> — pattern search. <code>grep -q '^Pattern'</code> exits silently with status 0 (match) or 1 (no match), perfect for a guard before <code>echo … >> file</code>. <a href="https://man7.org/linux/man-pages/man1/grep.1.html" target="_blank" rel="noopener">man 1 grep</a></p>
+              <p><strong><code>systemctl reload</code></strong> — tells systemd to send <code>SIGHUP</code> (or whatever the unit's <code>ExecReload</code> is) to the running daemon, prompting it to re-read its config without dropping connections. Distinct from <code>restart</code> which kills+respawns. <a href="https://man7.org/linux/man-pages/man1/systemctl.1.html" target="_blank" rel="noopener">man 1 systemctl</a></p>
+              <p><strong><code>sudo</code></strong> — runs the next command as root after authenticating the invoker against <code>/etc/sudoers</code>. <a href="https://man7.org/linux/man-pages/man8/sudo.8.html" target="_blank" rel="noopener">man 8 sudo</a></p>
+            </details>
+
+            <details class="refresher">
+              <summary>📚 Reference material — going deeper</summary>
+              <ul>
+                <li><a href="https://www.cisecurity.org/benchmark/ubuntu_linux" target="_blank" rel="noopener">CIS Ubuntu Linux Benchmarks</a> — full PDF, the §5.2 SSH section is what we're working through</li>
+                <li><a href="https://infosec.mozilla.org/guidelines/openssh" target="_blank" rel="noopener">Mozilla OpenSSH Guidelines</a> — modern, opinionated, and well-explained</li>
+                <li><a href="https://stribika.github.io/2015/01/04/secure-secure-shell.html" target="_blank" rel="noopener">"Secure Secure Shell" (stribika)</a> — older but still the clearest explanation of why each setting matters</li>
+                <li><a href="https://www.ssh-audit.com/" target="_blank" rel="noopener">ssh-audit</a> — automated tool that scores your sshd configuration; useful follow-up tool for real engagements</li>
+              </ul>
+            </details>
 
             <details class="refresher">
               <summary>Refresher: what is sshd_config?</summary>
@@ -306,12 +159,7 @@ clientalivecountmax 2</code></pre>
     </main>
   </div>
 
-  <!-- v86 — vendored locally so everything is same-origin (copy.sh assets
-       don't set Access-Control-Allow-Origin, which silently kills the wasm fetch
-       when this page is hosted on github.io). -->
   <script src="../assets/v86/libv86.js"></script>
-
-  <!-- Existing lesson registry (unchanged) -->
   <script src="../assets/lesson-00.js"></script>
   <script src="../assets/lesson-01.js"></script>
   <script src="../assets/lesson-02.js"></script>
@@ -324,12 +172,10 @@ clientalivecountmax 2</code></pre>
   <script src="../assets/lesson-09.js"></script>
   <script src="../assets/lessons.js"></script>
   <script src="../assets/app.js"></script>
+  <script src="../assets/v86-lab.js"></script>
 
   <script>
-    // Reuse the existing lesson-02 progress slot — the lab edition is just an
-    // alternate view, not a separate lesson in the registry.
     initPage("02-ssh");
-
     const checks = LESSONS_BY_ID["02-ssh"].checks;
     document.getElementById("checks-host").innerHTML = checks.map(c => `
       <li>
@@ -343,41 +189,11 @@ clientalivecountmax 2</code></pre>
     bindLessonChecks("02-ssh");
 
     // ────────────────────────────────────────────────────────────────
-    // v86 wiring
+    // Lesson 2 scenario: weak sshd_config + stub sshd that mimics
+    // OpenSSH's `sshd -T` output (parses the file, falls back to
+    // compile-time defaults for commented/absent directives).
     // ────────────────────────────────────────────────────────────────
-    // All assets are vendored under ../assets/v86/ so this page is fully
-    // same-origin. (copy.sh, where v86 demos are usually loaded from, doesn't
-    // expose CORS headers — the wasm fetch silently aborts in cross-origin use,
-    // which manifests as "stuck in booting forever".)
-    const V86_BASE = "../assets/v86";
-
-    let emulator = null;
-    let bootedOnce = false;
-
-    const bootBtn   = document.getElementById("vm-boot");
-    const stageBtn  = document.getElementById("vm-stage");
-    const clearBtn  = document.getElementById("vm-clear");
-    const statusEl  = document.getElementById("vm-status");
-    const screenEl  = document.getElementById("vm_screen");
-    const inputEl   = document.getElementById("vm-input-line");
-
-    let staging = false;     // true while auto-stage is typing — block other sends
-    let inputBuffer = "";    // sequence of "▸ Send to VM" calls queued behind the stage
-
-    function setStatus(s, label) {
-      statusEl.className = "vm-status s-" + s;
-      statusEl.textContent = label || s;
-    }
-
-    function setSendButtonsEnabled(on) {
-      document.querySelectorAll(".send-cmd").forEach(b => { b.disabled = !on; });
-      inputEl.disabled = !on;
-    }
-
-    // ─── Lesson scenario ──────────────────────────────────────────────
-    // Deliberately-weak default config. Mirrors what a fresh Ubuntu OpenSSH
-    // ships with for the directives CIS audits.
-    const WEAK_CONFIG = `# /etc/ssh/sshd_config — lab stub (intentionally weak defaults)
+    const WEAK_SSHD_CONFIG = `# /etc/ssh/sshd_config — lab stub (intentionally weak defaults)
 #PermitRootLogin yes
 PasswordAuthentication yes
 #MaxAuthTries 6
@@ -390,9 +206,6 @@ PermitEmptyPasswords no
 X11Forwarding yes
 `;
 
-    // Stub sshd: parses /etc/ssh/sshd_config and prints the effective config
-    // the way real OpenSSH's `sshd -T` does, including OpenSSH's compiled-in
-    // defaults for any directive that's commented or absent.
     const STUB_SSHD = `#!/bin/sh
 # Lab-only sshd stub. Reads /etc/ssh/sshd_config and prints the effective
 # runtime config the way \`sshd -T\` does on a real Ubuntu host.
@@ -401,7 +214,6 @@ case "$1" in
   -T)
     awk '
       BEGIN {
-        # OpenSSH compiled-in defaults for the directives CIS cares about
         d["permitrootlogin"]         = "yes"
         d["passwordauthentication"]  = "yes"
         d["maxauthtries"]            = "6"
@@ -438,214 +250,35 @@ case "$1" in
 esac
 `;
 
-    // Stub sudo: single-user busybox box, just exec the command
-    const STUB_SUDO = `#!/bin/sh
-exec "$@"
-`;
-
-    // Stub systemctl: prints what it would do, no real daemons running
-    const STUB_SYSTEMCTL = `#!/bin/sh
-svc="\${2:-ssh}"
-case "$1" in
-  reload|restart)
-    echo "[lab] $svc \${1}ed — would re-read /etc/ssh/sshd_config"
-    ;;
-  status)
-    echo "● $svc.service - OpenBSD Secure Shell server (lab stub)"
-    echo "     Loaded: loaded (/etc/init.d/$svc; enabled)"
-    echo "     Active: active (running) since boot"
-    ;;
-  is-active)  echo "active" ;;
-  is-enabled) echo "enabled" ;;
-  *)          echo "[lab] systemctl $* (stub — no-op)" ;;
-esac
-`;
-
-    // Build a single shell script that plants config + stubs and updates PATH.
-    // Heredocs with a single-quoted delimiter (<<'__LAB_END__') prevent shell
-    // expansion of $vars / backticks inside the body, so the script bodies
-    // ship verbatim.
-    function stageScenarioCmd() {
+    function stage() {
       return [
-        "mkdir -p /etc/ssh /usr/local/bin",
-        "cat > /etc/ssh/sshd_config <<'__LAB_END__'",
-        WEAK_CONFIG.trimEnd(),
-        "__LAB_END__",
-        "cat > /usr/local/bin/sshd <<'__LAB_END__'",
-        STUB_SSHD.trimEnd(),
-        "__LAB_END__",
-        "chmod +x /usr/local/bin/sshd",
-        "cat > /usr/local/bin/sudo <<'__LAB_END__'",
-        STUB_SUDO.trimEnd(),
-        "__LAB_END__",
-        "chmod +x /usr/local/bin/sudo",
-        "cat > /usr/local/bin/systemctl <<'__LAB_END__'",
-        STUB_SYSTEMCTL.trimEnd(),
-        "__LAB_END__",
-        "chmod +x /usr/local/bin/systemctl",
-        "export PATH=/usr/local/bin:$PATH",
-        "grep -q '/usr/local/bin' /etc/profile 2>/dev/null || echo 'export PATH=/usr/local/bin:$PATH' >> /etc/profile",
+        VmLab.commonScaffolding(),
+        VmLab.writeFile("/etc/ssh/sshd_config", WEAK_SSHD_CONFIG),
+        VmLab.writeExecutable("/usr/local/bin/sshd", STUB_SSHD),
         "clear",
-        "echo \"Lab ready. /etc/ssh/sshd_config + stub sshd/sudo/systemctl staged.\"",
-        "echo",
+        'echo "Lab ready. /etc/ssh/sshd_config + stub sshd/sudo/systemctl staged."',
+        'echo',
         "echo \"Try: sudo sshd -T | grep -iE 'permitrootlogin|password|maxauth|clientalive'\"",
-        "",
       ].join("\n");
     }
 
-    // Chunked keyboard send. v86's keyboard_send_text pushes scancodes into the
-    // emulated PS/2 buffer; flooding it (~150 scancodes for a 75-char command,
-    // 600+ for the staging script) overruns the buffer and drops trailing keys.
-    // 64-char chunks with a small yield between them give the kernel time to drain.
-    async function sendToVm(text) {
-      if (!emulator) return false;
-      const CHUNK = 64;
-      const DELAY_MS = 25;
-      for (let i = 0; i < text.length; i += CHUNK) {
-        emulator.keyboard_send_text(text.slice(i, i + CHUNK));
-        if (i + CHUNK < text.length) {
-          await new Promise(r => setTimeout(r, DELAY_MS));
-        }
-      }
-      return true;
+    function remediate() {
+      return [
+        "sed -i -e 's/^#*PermitRootLogin .*/PermitRootLogin no/' \\",
+        "       -e 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' \\",
+        "       -e 's/^#*MaxAuthTries .*/MaxAuthTries 4/' \\",
+        "       -e 's/^#*ClientAliveInterval .*/ClientAliveInterval 300/' \\",
+        "       -e 's/^#*ClientAliveCountMax .*/ClientAliveCountMax 2/' \\",
+        "       /etc/ssh/sshd_config",
+        "grep -q '^PermitRootLogin'        /etc/ssh/sshd_config || echo 'PermitRootLogin no'        >> /etc/ssh/sshd_config",
+        "grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config",
+        "grep -q '^MaxAuthTries'           /etc/ssh/sshd_config || echo 'MaxAuthTries 4'             >> /etc/ssh/sshd_config",
+        "grep -q '^ClientAliveInterval'    /etc/ssh/sshd_config || echo 'ClientAliveInterval 300'    >> /etc/ssh/sshd_config",
+        "grep -q '^ClientAliveCountMax'    /etc/ssh/sshd_config || echo 'ClientAliveCountMax 2'      >> /etc/ssh/sshd_config",
+      ].join("\n");
     }
 
-    // ─── Boot button ──────────────────────────────────────────────────
-    bootBtn.addEventListener("click", () => {
-      if (emulator) return;
-      setStatus("booting", "loading wasm…");
-      bootBtn.disabled = true;
-
-      try {
-        emulator = new V86({
-          wasm_path:        V86_BASE + "/v86.wasm",
-          memory_size:      64 * 1024 * 1024,
-          vga_memory_size:  2 * 1024 * 1024,
-          screen_container: document.getElementById("vm_screen"),
-          bios:     { url: V86_BASE + "/seabios.bin" },
-          vga_bios: { url: V86_BASE + "/vgabios.bin" },
-          cdrom:    { url: V86_BASE + "/linux4.iso" },
-          autostart: true,
-        });
-      } catch (e) {
-        console.error("[lab] V86 constructor threw:", e);
-        setStatus("error", "init failed (see console)");
-        bootBtn.disabled = false;
-        return;
-      }
-
-      // Surface real progress so a stuck boot is debuggable, not silent.
-      let totalLoaded = 0;
-      emulator.add_listener("download-progress", (info) => {
-        if (info && typeof info.loaded === "number") {
-          totalLoaded = info.loaded;
-          const mb = (totalLoaded / (1024 * 1024)).toFixed(1);
-          setStatus("booting", `loading… ${mb} MB`);
-        }
-      });
-
-      emulator.add_listener("download-error", (info) => {
-        console.error("[lab] v86 download error:", info);
-        setStatus("error", "asset failed (see console)");
-      });
-
-      emulator.add_listener("emulator-loaded", () => {
-        setStatus("booting", "wasm loaded — booting kernel…");
-      });
-
-      // emulator-ready fires once init is complete; boot still takes a moment.
-      emulator.add_listener("emulator-ready", () => {
-        setStatus("booting", "kernel booting…");
-        // Wait for busybox init to drop us at a shell, then prime it.
-        setTimeout(async () => {
-          setStatus("staging", "staging lab…");
-          staging = true;
-          setSendButtonsEnabled(false);
-          // Dismiss "press enter for console", then stage
-          await sendToVm("\n");
-          await new Promise(r => setTimeout(r, 600));
-          await sendToVm(stageScenarioCmd());
-          bootedOnce = true;
-          staging = false;
-          setStatus("ready", "ready");
-          stageBtn.disabled = false;
-          clearBtn.disabled = false;
-          setSendButtonsEnabled(true);
-          // Park focus on the screen so the user can immediately type.
-          screenEl.focus();
-        }, 4500);
-      });
-    });
-
-    stageBtn.addEventListener("click", async () => {
-      if (!emulator || staging) return;
-      staging = true;
-      setStatus("staging", "re-staging…");
-      setSendButtonsEnabled(false);
-      await sendToVm(stageScenarioCmd());
-      staging = false;
-      setStatus("ready", "ready");
-      setSendButtonsEnabled(true);
-      screenEl.focus();
-    });
-
-    clearBtn.addEventListener("click", () => {
-      if (!emulator || staging) return;
-      sendToVm("clear\n");
-      screenEl.focus();
-    });
-
-    // ─── "▸ Send to VM" buttons ──────────────────────────────────────
-    document.querySelectorAll(".send-cmd").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        if (!emulator) {
-          alert("Boot the VM first (▶ Boot VM, top-right).");
-          return;
-        }
-        if (staging) return;          // gated by setSendButtonsEnabled, but be defensive
-        const direct = btn.getAttribute("data-cmd");
-        if (direct) {
-          await sendToVm(direct + "\n");
-          screenEl.focus();
-          return;
-        }
-        const key = btn.getAttribute("data-cmd-key");
-        if (key === "remediate") {
-          // Full remediate script. Multi-line, sed + grep guards.
-          const script = `sed -i -e 's/^#*PermitRootLogin .*/PermitRootLogin no/' -e 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' -e 's/^#*MaxAuthTries .*/MaxAuthTries 4/' -e 's/^#*ClientAliveInterval .*/ClientAliveInterval 300/' -e 's/^#*ClientAliveCountMax .*/ClientAliveCountMax 2/' /etc/ssh/sshd_config\n` +
-            `grep -q '^PermitRootLogin'        /etc/ssh/sshd_config || echo 'PermitRootLogin no'        >> /etc/ssh/sshd_config\n` +
-            `grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config\n` +
-            `grep -q '^MaxAuthTries'           /etc/ssh/sshd_config || echo 'MaxAuthTries 4'             >> /etc/ssh/sshd_config\n` +
-            `grep -q '^ClientAliveInterval'    /etc/ssh/sshd_config || echo 'ClientAliveInterval 300'    >> /etc/ssh/sshd_config\n` +
-            `grep -q '^ClientAliveCountMax'    /etc/ssh/sshd_config || echo 'ClientAliveCountMax 2'      >> /etc/ssh/sshd_config\n`;
-          await sendToVm(script);
-          screenEl.focus();
-        }
-      });
-    });
-
-    // ─── Fallback input box ──────────────────────────────────────────
-    // Always works regardless of VM-screen focus. Enter → send + newline.
-    inputEl.addEventListener("keydown", async (e) => {
-      if (e.key !== "Enter" || staging || !emulator) return;
-      e.preventDefault();
-      const text = inputEl.value;
-      inputEl.value = "";
-      await sendToVm(text + "\n");
-    });
-
-    // ─── Focus management ────────────────────────────────────────────
-    // Click anywhere in the screen container → focus it so direct typing works.
-    screenEl.addEventListener("mousedown", (e) => {
-      // Don't steal focus from the canvas (graphical mode would need it directly)
-      // but in text mode (our case) focusing the outer div is fine.
-      screenEl.focus();
-    });
-
-    // Visible focus state — adds .has-focus to the screen container while it
-    // (or any descendant) holds focus. Easier to spot than a thin browser outline.
-    screenEl.addEventListener("focusin",  () => screenEl.classList.add("has-focus"));
-    screenEl.addEventListener("focusout", () => screenEl.classList.remove("has-focus"));
+    VmLab.init({ stage, commandHandlers: { remediate } });
   </script>
 </body>
 </html>

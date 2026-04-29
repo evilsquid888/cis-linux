@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Account Audit (with embedded Linux) — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main main-lab">
+      <h1>Lesson 4a — User Account Audit <span style="color: var(--accent); font-weight: 400;">· with embedded Linux</span></h1>
+      <div class="lesson-meta">
+        <span>CIS §5.3 + §5.4</span>
+        <span>~15 min</span>
+        <span>5 controls</span>
+        <span><a href="04-user-audit.html" style="color: var(--text-muted);">← read-only edition</a></span>
+      </div>
+
+      <div class="lab-blurb">
+        Same content as Lesson 4, with a real Linux VM you can type into. The shell starts with a populated <code>/etc/passwd</code> + <code>/etc/shadow</code> + <code>/etc/login.defs</code> that contain <em>several</em> deliberate findings: a non-root UID-0 account, an empty-password user, a system account with a real shell, and a permissive aging policy. Your job: find them all and fix what should be fixed.
+      </div>
+
+      <div class="lab-grid">
+
+        <div class="lab-instructions">
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🎯</span> Why this matters</h2>
+            <p>The first thing any defender does on a new box is "who has access here?" A forgotten service account with a UID-0 alias, an empty-password row in <code>/etc/shadow</code>, a cron user with a valid login shell — these are some of the most common findings in real engagements.</p>
+
+            <details class="refresher">
+              <summary>📖 Tools and files used in this lesson</summary>
+              <p><strong><code>/etc/passwd</code></strong> — the "who is allowed to log in" database. Seven colon-separated fields per line: <code>user:x:UID:GID:GECOS:home:shell</code>. The <code>x</code> in field 2 means "password is in shadow file." Anyone with UID 0 has root privileges; the lesson's first audit finds extras. <a href="https://man7.org/linux/man-pages/man5/passwd.5.html" target="_blank" rel="noopener">man 5 passwd</a></p>
+              <p><strong><code>/etc/shadow</code></strong> — the actual hashed passwords plus aging metadata. Root-only readable. Format: <code>user:hash:lastchanged:min:max:warn:inactive:expire:reserved</code>. An empty hash field (<code>::</code>) means no password is required — a critical finding. A leading <code>!</code> or <code>*</code> means the account is locked. <a href="https://man7.org/linux/man-pages/man5/shadow.5.html" target="_blank" rel="noopener">man 5 shadow</a></p>
+              <p><strong><code>/etc/login.defs</code></strong> — system-wide login defaults. Sets the password aging policy (<code>PASS_MAX_DAYS</code>, <code>PASS_MIN_DAYS</code>, <code>PASS_WARN_AGE</code>) for newly created accounts and provides defaults that <code>chage</code>/<code>useradd</code> consult. <a href="https://man7.org/linux/man-pages/man5/login.defs.5.html" target="_blank" rel="noopener">man 5 login.defs</a></p>
+              <p><strong><code>awk</code></strong> — line-oriented text processor. Fields 1–7 of <code>/etc/passwd</code> become <code>$1</code>…<code>$7</code> when you set <code>-F:</code>. Patterns like <code>($3==0)</code> filter rows; the body in braces prints them. <a href="https://man7.org/linux/man-pages/man1/awk.1p.html" target="_blank" rel="noopener">man 1 awk</a> · <a href="https://www.gnu.org/software/gawk/manual/" target="_blank" rel="noopener">GAWK manual</a></p>
+              <p><strong><code>passwd</code></strong> — change/lock/unlock account passwords. <code>passwd -l user</code> locks by prefixing the password hash with <code>!</code> (so no password can ever match); <code>passwd -u</code> unlocks. <a href="https://man7.org/linux/man-pages/man1/passwd.1.html" target="_blank" rel="noopener">man 1 passwd</a></p>
+              <p><strong><code>usermod</code></strong> — modify an existing account. <code>usermod -s /usr/sbin/nologin user</code> changes the login shell to one that prints a polite message and exits — used to revoke interactive shell access from system/service accounts. <a href="https://man7.org/linux/man-pages/man8/usermod.8.html" target="_blank" rel="noopener">man 8 usermod</a></p>
+              <p><strong><code>lastlog</code></strong> — reads <code>/var/log/lastlog</code> and prints each user's most recent login. "Never logged in" entries are normal for system accounts; an unexpected entry on one of those is a finding. <a href="https://man7.org/linux/man-pages/man8/lastlog.8.html" target="_blank" rel="noopener">man 8 lastlog</a></p>
+              <p><strong><code>last</code></strong> — reads <code>/var/log/wtmp</code> and prints recent login sessions in reverse chronological order. The <code>-a</code> flag puts the source host at the end of each line. <a href="https://man7.org/linux/man-pages/man1/last.1.html" target="_blank" rel="noopener">man 1 last</a></p>
+            </details>
+
+            <details class="refresher">
+              <summary>📚 Reference material — going deeper</summary>
+              <ul>
+                <li><a href="https://www.cisecurity.org/benchmark/ubuntu_linux" target="_blank" rel="noopener">CIS Ubuntu Linux Benchmarks</a> — §5.3 (PAM) and §5.4 (Users)</li>
+                <li><a href="https://www.tldp.org/LDP/lame/LAME/linux-admin-made-easy/users.html" target="_blank" rel="noopener">Linux Admin Made Easy: Users</a> — covers the file formats with worked examples</li>
+                <li><a href="https://wiki.archlinux.org/title/Users_and_groups" target="_blank" rel="noopener">Arch Wiki: Users and groups</a> — concise authoritative reference for the file formats and tool behaviors</li>
+                <li><a href="https://attack.mitre.org/techniques/T1136/" target="_blank" rel="noopener">MITRE ATT&amp;CK T1136 — Create Account</a> — why "extra account with UID 0" is a thing attackers do</li>
+              </ul>
+            </details>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔍</span> Audit — five quick checks</h2>
+
+            <h3>1. Anyone else with UID 0?</h3>
+            <pre><code>awk -F: '($3==0){print}' /etc/passwd</code></pre>
+            <button class="send-cmd" data-cmd="awk -F: '($3==0){print}' /etc/passwd">▸ Send to VM</button>
+            <p style="font-size: 12px; color: var(--text-muted);">Expected: exactly one line — root. Anything else is a critical finding.</p>
+
+            <h3>2. Any empty passwords?</h3>
+            <pre><code>sudo awk -F: '($2==""){print $1}' /etc/shadow</code></pre>
+            <button class="send-cmd" data-cmd='sudo awk -F: "(\$2==\"\"){print \$1}" /etc/shadow'>▸ Send to VM</button>
+            <p style="font-size: 12px; color: var(--text-muted);">Expected: nothing. Lock any returned accounts: <code>sudo passwd -l &lt;user&gt;</code>.</p>
+
+            <h3>3. System accounts (UID&lt;1000) with login shells</h3>
+            <pre><code>awk -F: '($3&lt;1000 &amp;&amp; $1!="root"){print $1, $7}' /etc/passwd | grep -vE '/(usr/)?sbin/nologin|/bin/false'</code></pre>
+            <button class="send-cmd" data-cmd-key="audit3">▸ Send to VM</button>
+            <p style="font-size: 12px; color: var(--text-muted);">Expected: empty (or only special entries you can justify).</p>
+
+            <h3>4. Password aging policy</h3>
+            <pre><code>grep -E '^PASS_(MAX|MIN|WARN)_' /etc/login.defs</code></pre>
+            <button class="send-cmd" data-cmd="grep -E '^PASS_(MAX|MIN|WARN)_' /etc/login.defs">▸ Send to VM</button>
+            <p style="font-size: 12px; color: var(--text-muted);">Expected: PASS_MAX_DAYS 365, PASS_MIN_DAYS 1, PASS_WARN_AGE 7.</p>
+
+            <h3>5. Last-login activity</h3>
+            <pre><code>lastlog | grep -v 'Never logged in'
+last -a | head -20</code></pre>
+            <button class="send-cmd" data-cmd-key="audit5">▸ Send to VM</button>
+            <p style="font-size: 12px; color: var(--text-muted);">Document anything anomalous in the assessor notes below.</p>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔧</span> Remediate — only what's broken</h2>
+            <p>Findings dictate fixes. The lab's deliberate findings + canonical fixes:</p>
+            <pre><code># Lock the empty-password account
+sudo passwd -l alice
+
+# Change the system account's shell to nologin
+sudo usermod -s /usr/sbin/nologin svc-batch
+
+# Apply password aging defaults
+sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS  365/'  /etc/login.defs
+sudo sed -i 's/^PASS_MIN_DAYS.*/PASS_MIN_DAYS  1/'    /etc/login.defs
+sudo sed -i 's/^PASS_WARN_AGE.*/PASS_WARN_AGE  7/'    /etc/login.defs</code></pre>
+            <button class="send-cmd" data-cmd-key="remediate">▸ Send to VM (run all)</button>
+
+            <p style="margin-top:14px;">The non-root UID-0 account (<code>backup</code>) is left for you to investigate manually — that's the kind of finding where the right answer depends on context. In a real engagement, you'd document it, ask the customer if it's intentional, then either delete it (<code>userdel backup</code>) or change its UID to a non-zero one.</p>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">✅</span> Verify</h2>
+            <p>Re-run the five audit commands. The locked + nologin findings should go away; the password aging values should match the targets:</p>
+            <pre><code>sudo awk -F: '($2==""){print $1}' /etc/shadow            # empty
+awk -F: '($3&lt;1000 &amp;&amp; $1!="root"){print $1, $7}' /etc/passwd \
+  | grep -vE '/(usr/)?sbin/nologin|/bin/false'           # only "backup" (intentional finding)
+grep -E '^PASS_(MAX|MIN|WARN)_' /etc/login.defs           # 365 / 1 / 7</code></pre>
+            <button class="send-cmd" data-cmd-key="verify">▸ Send to VM</button>
+            <ul class="check-list" id="checks-host"></ul>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+            <textarea id="lesson-notes" placeholder="Document any unusual accounts, login activity, or aging policy gaps."></textarea>
+          </div>
+
+          <div id="lesson-footer-host"></div>
+        </div>
+
+        <aside class="vm-panel" id="vm-panel">
+          <div class="vm-toolbar">
+            <button id="vm-boot">▶ Boot VM</button>
+            <button id="vm-stage" disabled title="Re-plant /etc/passwd, /etc/shadow, /etc/login.defs">↻ Reset scenario</button>
+            <button id="vm-clear" disabled title="Clear the screen">⌫ Clear</button>
+            <span id="vm-status" class="vm-status s-stopped">stopped</span>
+          </div>
+          <div id="vm_screen" class="vm-screen" tabindex="0">
+            <div></div><canvas></canvas>
+          </div>
+          <div class="vm-input">
+            <span>$</span>
+            <input id="vm-input-line" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   placeholder="Type and press Enter to send to VM" disabled>
+          </div>
+          <div class="vm-hint">
+            Stub <code>passwd -l</code>, <code>usermod -s</code>, <code>lastlog</code>, <code>last</code>. <code>/etc/passwd</code> + <code>/etc/shadow</code> are real text files — your edits via <code>sed</code>, <code>passwd</code>, <code>usermod</code> all apply. Reset scenario re-plants the originals.
+          </div>
+        </aside>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/v86/libv86.js"></script>
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script src="../assets/v86-lab.js"></script>
+
+  <script>
+    initPage("04-user-audit");
+    const checks = LESSONS_BY_ID["04-user-audit"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("04-user-audit");
+
+    // ────────────────────────────────────────────────────────────────
+    // Lesson 4 scenario — populated user database with deliberate findings:
+    //   - "backup" has UID 0 (extra root)
+    //   - "alice" has empty password
+    //   - "svc-batch" is UID<1000 with /bin/bash
+    //   - login.defs has lax aging policy
+    // ────────────────────────────────────────────────────────────────
+    const PASSWD = `root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+backup:x:0:0:backup:/var/backups:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+sshd:x:108:65534::/run/sshd:/usr/sbin/nologin
+svc-batch:x:998:998:Batch service:/var/lib/svc:/bin/bash
+ubuntu:x:1000:1000:ubuntu,,,:/home/ubuntu:/bin/bash
+alice:x:1001:1001:Alice,,,:/home/alice:/bin/bash
+bob:x:1002:1002:Bob,,,:/home/bob:/bin/bash
+`;
+
+    const SHADOW = `root:$6$xRkJ$abc123:19800:0:99999:7:::
+daemon:*:19800:0:99999:7:::
+bin:*:19800:0:99999:7:::
+sys:*:19800:0:99999:7:::
+backup:$6$Yz9$def456:19800:0:99999:7:::
+www-data:*:19800:0:99999:7:::
+sshd:*:19800:0:99999:7:::
+svc-batch:$6$Lm2$ghi789:19800:0:99999:7:::
+ubuntu:$6$Pq3$jkl012:19800:0:99999:7:::
+alice::19800:0:99999:7:::
+bob:$6$Wn4$mno345:19800:0:99999:7:::
+`;
+
+    const LOGIN_DEFS = `# /etc/login.defs — lab stub (intentionally lax aging policy)
+PASS_MAX_DAYS  99999
+PASS_MIN_DAYS  0
+PASS_WARN_AGE  7
+UID_MIN        1000
+UID_MAX        60000
+`;
+
+    // Stub passwd: only handles -l (lock account) since that's what the lesson uses.
+    const STUB_PASSWD = `#!/bin/sh
+SHADOW=/etc/shadow
+if [ "$1" = "-l" ]; then
+  user="$2"
+  if grep -q "^$user:" "$SHADOW"; then
+    sed -i "s|^$user:\\([^:]*\\)|$user:!\\1|" "$SHADOW"
+    echo "passwd: password expiry information changed."
+  else
+    echo "passwd: user '$user' does not exist"; exit 1
+  fi
+else
+  echo "Lab passwd stub: only -l is implemented."
+fi
+`;
+
+    const STUB_USERMOD = `#!/bin/sh
+PASSWD=/etc/passwd
+if [ "$1" = "-s" ]; then
+  shell="$2"; user="$3"
+  if grep -q "^$user:" "$PASSWD"; then
+    awk -F: -v u="$user" -v s="$shell" 'BEGIN{OFS=":"} $1==u{$7=s} {print}' "$PASSWD" > "$PASSWD.new"
+    mv "$PASSWD.new" "$PASSWD"
+  else
+    echo "usermod: user '$user' does not exist"; exit 1
+  fi
+else
+  echo "Lab usermod stub: only -s is implemented."
+fi
+`;
+
+    const STUB_LASTLOG = `#!/bin/sh
+cat <<'EOF'
+Username         Port     From             Latest
+root             tty1                      Wed Apr 24 09:14:22 +0000 2026
+daemon                                     **Never logged in**
+bin                                        **Never logged in**
+sys                                        **Never logged in**
+backup           pts/0    192.0.2.51       Tue Apr 23 02:18:09 +0000 2026
+www-data                                   **Never logged in**
+sshd                                       **Never logged in**
+svc-batch        pts/1    10.42.0.7        Mon Apr 22 23:45:01 +0000 2026
+ubuntu           pts/0    10.0.0.21        Wed Apr 24 08:01:11 +0000 2026
+alice                                      **Never logged in**
+bob              pts/0    10.0.0.21        Tue Apr 23 17:30:55 +0000 2026
+EOF
+`;
+
+    const STUB_LAST = `#!/bin/sh
+cat <<'EOF'
+ubuntu   pts/0        10.0.0.21        Wed Apr 24 08:01   still logged in
+backup   pts/0        192.0.2.51       Tue Apr 23 02:18 - 02:31  (00:13)
+bob      pts/0        10.0.0.21        Tue Apr 23 17:30 - 18:02  (00:32)
+svc-batch pts/1       10.42.0.7        Mon Apr 22 23:45 - 23:50  (00:05)
+ubuntu   pts/0        10.0.0.21        Mon Apr 22 09:00 - 12:14  (03:14)
+reboot   system boot  6.8.0-31-generic Mon Apr 22 08:55   still running
+
+wtmp begins Mon Apr 22 08:55:01 +0000 2026
+EOF
+`;
+
+    function stage() {
+      return [
+        VmLab.commonScaffolding(),
+        VmLab.writeFile("/etc/passwd", PASSWD),
+        VmLab.writeFile("/etc/shadow", SHADOW),
+        VmLab.writeFile("/etc/login.defs", LOGIN_DEFS),
+        VmLab.writeExecutable("/usr/local/bin/passwd",  STUB_PASSWD),
+        VmLab.writeExecutable("/usr/local/bin/usermod", STUB_USERMOD),
+        VmLab.writeExecutable("/usr/local/bin/lastlog", STUB_LASTLOG),
+        VmLab.writeExecutable("/usr/local/bin/last",    STUB_LAST),
+        "clear",
+        'echo "Lab ready. /etc/passwd + /etc/shadow + /etc/login.defs planted."',
+        'echo',
+        "echo \"Try: awk -F: '(\\$3==0){print}' /etc/passwd\"",
+      ].join("\n");
+    }
+
+    const audit3 = `awk -F: '($3<1000 && $1!="root"){print $1, $7}' /etc/passwd | grep -vE '/(usr/)?sbin/nologin|/bin/false'`;
+    const audit5 = `lastlog | grep -v 'Never logged in'\nlast -a | head -20`;
+
+    function remediate() {
+      return [
+        "sudo passwd -l alice",
+        "sudo usermod -s /usr/sbin/nologin svc-batch",
+        "sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS  365/'  /etc/login.defs",
+        "sudo sed -i 's/^PASS_MIN_DAYS.*/PASS_MIN_DAYS  1/'    /etc/login.defs",
+        "sudo sed -i 's/^PASS_WARN_AGE.*/PASS_WARN_AGE  7/'    /etc/login.defs",
+      ].join("\n");
+    }
+
+    function verify() {
+      return [
+        "echo '-- empty passwords (should be empty) --'",
+        "sudo awk -F: '($2==\"\"){print $1}' /etc/shadow",
+        "echo '-- system accounts with shells (should be backup only — UID-0 manual finding) --'",
+        audit3,
+        "echo '-- password aging policy --'",
+        "grep -E '^PASS_(MAX|MIN|WARN)_' /etc/login.defs",
+      ].join("\n");
+    }
+
+    VmLab.init({
+      stage,
+      commandHandlers: {
+        audit3:  () => audit3,
+        audit5:  () => audit5,
+        remediate,
+        verify,
+      },
+    });
+  </script>
+</body>
+</html>

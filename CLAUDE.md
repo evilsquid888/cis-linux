@@ -79,6 +79,46 @@ start index.html           # Windows
 4. Author `lessons/NN-slug.html` following the five-block shape (Concept / Audit / Remediate / Verify / Notes)
 5. `app.js` picks it up automatically — sidebar nav, progress bar, etc.
 
+## VM lab editions (lessons/NNa-*-vm.html)
+
+Selected CIS lessons have an alternate "lab edition" that boots a real
+Linux VM in the browser via [v86](https://github.com/copy/v86) and lets
+the user type real shell against a deliberately-broken scenario. Same
+lesson ID, same `LESSONS_BY_ID` checks; the lab edition is just an
+alternate view layered on top.
+
+- `lessons/02a-ssh-vm.html`        (paired with `02-ssh.html`)
+- `lessons/03a-ufw-vm.html`        (paired with `03-ufw.html`)
+- `lessons/04a-user-audit-vm.html` (paired with `04-user-audit.html`)
+
+Shared plumbing:
+
+- `assets/v86/`     — vendored libv86.js + v86.wasm + BIOSes + linux4.iso (~9.8 MB, same-origin so CORS isn't a problem)
+- `assets/v86-lab.js` — V86 init, chunked keystroke send, staging-state machine, focus management, fallback input, common stub binaries (sudo, systemctl, apt, dpkg)
+- VM-panel CSS lives in `assets/style.css` under "v86 lab edition"
+
+Each lesson HTML supplies a `stage()` function (returns multi-line
+shell that plants config files + lesson-specific stubs) and any
+`commandHandlers` for multi-line "▸ Send to VM" buttons. Pattern:
+
+```js
+VmLab.init({
+  stage: () => [
+    VmLab.commonScaffolding(),
+    VmLab.writeFile("/etc/ssh/sshd_config", WEAK_CONFIG),
+    VmLab.writeExecutable("/usr/local/bin/sshd", STUB_SSHD),
+    "clear",
+    'echo "Lab ready."',
+  ].join("\n"),
+  commandHandlers: { remediate: () => "..." },
+});
+```
+
+See `docs/v86-lessons-learned.md` for the why behind every non-obvious
+decision (CORS gotcha, PS/2 buffer overrun, focus dance, stub binary
+philosophy, heredoc vs printf, etc.). **Read that before adding a
+fourth VM lesson.**
+
 ## Source Material
 
 - `CIS_Ubuntu_Linux_24.04_LTS_Benchmark_v1.0.0.pdf` (gitignored — local reference)
