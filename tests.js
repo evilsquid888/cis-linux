@@ -105,5 +105,59 @@ for (const lesson of ctx.LESSONS) {
 }
 
 // ============================================================
+section("Assessment judgment");
+// ============================================================
+
+// Stub a STATE for judgment tests
+function makeState(completedHardening, checksTickedRatio = 1.0) {
+  const lessons = {};
+  for (const id of [...ctx.HARDENING_LESSON_IDS]) {
+    const lesson = ctx.LESSONS_BY_ID[id];
+    const checks = {};
+    const totalChecks = lesson.checks.length;
+    const tickedCount = Math.floor(totalChecks * checksTickedRatio);
+    lesson.checks.forEach((c, i) => {
+      checks[c.id] = { ticked: i < tickedCount, finding: i < tickedCount ? "pass" : "fail" };
+    });
+    lessons[id] = {
+      visited: true,
+      complete: completedHardening.includes(id),
+      visitedAt: "x", completedAt: completedHardening.includes(id) ? "x" : null,
+      notes: "",
+      checks
+    };
+  }
+  return { schemaVersion: 1, metadata: {}, lessons, report: {} };
+}
+
+// Load assessment.js
+loadScript("assets/assessment.js", ctx);
+
+test("computeJudgment returns 'solid' when 4/5 hardening + 60% checks", () => {
+  const s = makeState(["02-ssh","03-ufw","04-user-audit","06-stig-ssh-crypto"], 0.7);
+  assert.strictEqual(ctx.computeJudgment(s).tier, "solid");
+});
+
+test("computeJudgment returns 'solid' when all 5 + 100% checks", () => {
+  const s = makeState([...ctx.HARDENING_LESSON_IDS], 1.0);
+  assert.strictEqual(ctx.computeJudgment(s).tier, "solid");
+});
+
+test("computeJudgment returns 'reasonable' when 3/5 hardening", () => {
+  const s = makeState(["02-ssh","03-ufw","04-user-audit"], 0.5);
+  assert.strictEqual(ctx.computeJudgment(s).tier, "reasonable");
+});
+
+test("computeJudgment returns 'needs-work' when 2/5 hardening", () => {
+  const s = makeState(["02-ssh","03-ufw"], 1.0);
+  assert.strictEqual(ctx.computeJudgment(s).tier, "needs-work");
+});
+
+test("computeJudgment 4/5 with low check coverage drops to 'reasonable'", () => {
+  const s = makeState(["02-ssh","03-ufw","04-user-audit","06-stig-ssh-crypto"], 0.2);
+  assert.strictEqual(ctx.computeJudgment(s).tier, "reasonable");
+});
+
+// ============================================================
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
