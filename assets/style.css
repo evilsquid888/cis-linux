@@ -1,0 +1,391 @@
+/* ============================================================
+   CIS Linux Tutorial — base styles
+   ============================================================ */
+
+:root {
+  --bg:               #0f1419;
+  --surface:          #1a2028;
+  --surface-2:        #232b36;
+  --border:           #2d3845;
+  --text:             #e6edf3;
+  --text-muted:       #8b9ba8;
+  --accent:           #4fc3f7;
+  --accent-dim:       #2a8db5;
+  --success:          #4caf50;
+  --warn:             #ffb74d;
+  --danger:           #ef5350;
+  --critical:         #d32f2f;
+  --high:             #f57c00;
+  --medium:           #fbc02d;
+  --code-bg:          #0a0e13;
+  --radius:           6px;
+  --gap:              16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code, pre, .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+
+/* ---- Layout ---- */
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: calc(100vh - 56px);
+}
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  overflow-y: auto;
+}
+.main {
+  padding: 32px 48px;
+  max-width: 920px;
+}
+
+/* ---- Header ---- */
+
+.header {
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header-title { font-weight: 600; font-size: 16px; }
+.header-progress { flex: 1; display: flex; align-items: center; gap: 12px; max-width: 400px; }
+.progress-text { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.btn-icon {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: var(--radius);
+}
+.btn-icon:hover { background: var(--surface-2); color: var(--text); }
+
+/* ---- Sidebar nav ---- */
+
+.nav-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 12px 16px 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+.nav-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-left-color: var(--accent);
+}
+.nav-item .check {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.nav-item.complete .check {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+}
+.nav-item-num { font-size: 11px; color: var(--text-muted); min-width: 16px; }
+
+/* ---- Main content ---- */
+
+h1 { font-size: 28px; margin: 0 0 8px; }
+h2 { font-size: 20px; margin: 32px 0 12px; }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+p  { margin: 0 0 12px; }
+
+.lesson-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.lesson-meta span:not(:last-child)::after { content: "·"; margin-left: 12px; }
+
+.lesson-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 16px 0;
+}
+.lesson-block .block-icon {
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 18px;
+}
+.lesson-block h2 { margin-top: 0; }
+
+/* ---- Code blocks ---- */
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 8px 0;
+  position: relative;
+}
+pre code { font-size: 13px; color: var(--text); white-space: pre; }
+.copy-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.copy-btn:hover { color: var(--text); }
+code:not(pre code) {
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 13px;
+}
+
+/* ---- Callouts ---- */
+
+.callout {
+  border-left: 4px solid var(--accent);
+  padding: 12px 16px;
+  margin: 16px 0;
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+.callout.warn   { border-left-color: var(--warn); }
+.callout.danger { border-left-color: var(--danger); }
+.callout-title  { font-weight: 600; margin-bottom: 4px; }
+
+details.refresher { margin: 12px 0; }
+details.refresher > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 6px 0;
+}
+details.refresher[open] > summary { color: var(--text); margin-bottom: 8px; }
+
+/* ---- Checks ---- */
+
+.check-list { list-style: none; padding: 0; margin: 8px 0; }
+.check-list li {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.check-list li:last-child { border-bottom: none; }
+.check-list input[type=checkbox] {
+  margin-top: 4px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.check-list .severity {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.severity-critical { background: var(--critical); color: white; }
+.severity-high     { background: var(--high);     color: white; }
+.severity-medium   { background: var(--medium);   color: black; }
+
+/* ---- Notes ---- */
+
+textarea {
+  width: 100%;
+  min-height: 80px;
+  background: var(--code-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+/* ---- Footer / Prev-Next ---- */
+
+.lesson-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  gap: 12px;
+}
+.btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { background: var(--accent-dim); color: white; border-color: var(--accent-dim); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.btn-primary:hover { background: var(--accent-dim); color: white; }
+.btn[disabled], .btn.disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- Settings overlay ---- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.overlay.open { display: flex; }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+}
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+.form-group input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+}
+.danger-btn {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.danger-btn:hover { background: var(--danger); color: white; }
+
+/* ---- Lab path cards (Lesson 0) ---- */
+
+.path-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.path-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  cursor: pointer;
+}
+.path-card:hover { border-color: var(--accent); }
+.path-card.recommended { border-color: var(--accent); }
+.path-card .pill {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+/* ---- Findings table (report) ---- */
+
+table.findings {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 16px 0;
+}
+table.findings th, table.findings td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+table.findings th { background: var(--surface-2); font-weight: 600; font-size: 13px; }
+.status-pass { color: var(--success); font-weight: 600; }
+.status-fail { color: var(--danger);  font-weight: 600; }
+.status-na   { color: var(--text-muted); font-weight: 600; }
+
+/* ---- Narrow / mobile ---- */
+
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { padding: 20px; }
+  .header-progress { display: none; }
+}
+
+/* ---- Save status ---- */
+.save-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 60px;
+  text-align: right;
+}
+.save-status.saving { color: var(--warn); }
+.save-status.saved  { color: var(--success); }
