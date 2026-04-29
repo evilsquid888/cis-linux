@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>CIS Linux Tutorial</h1>
+      <p style="font-size:17px; color:var(--text-muted);">
+        A one-hour, hands-on introduction to assessing and hardening an Ubuntu 24.04 LTS server using the CIS Benchmark and a taste of DISA STIG.
+      </p>
+
+      <div class="callout">
+        <div class="callout-title">Your engagement</div>
+        You've been engaged by <strong>Acme Corp</strong> to perform a quick CIS-style audit on one of their Ubuntu servers. Work through the lessons in order — each one walks you through a real audit step you'd run on the box. At the end you'll generate a customer-facing report.
+      </div>
+
+      <h2>Course outline</h2>
+      <div id="lesson-list"></div>
+
+      <h2>Before you start</h2>
+      <p>Open <a href="lessons/00-lab-setup.html">Lesson 0 — Lab Setup</a> to get a working Ubuntu 24.04 sandbox. Three paths supported: Multipass, bring-your-own, or class lab.</p>
+      <p>Set your assessor name and customer name in <a href="#" onclick="openSettings(); return false;">Settings (⚙)</a> — they appear on your final customer report.</p>
+
+      <p style="margin-top:48px;"><a class="btn btn-primary" href="lessons/00-lab-setup.html">Start: Lab Setup →</a></p>
+    </main>
+  </div>
+
+  <script src="assets/lesson-00.js"></script>
+  <script src="assets/lesson-01.js"></script>
+  <script src="assets/lesson-02.js"></script>
+  <script src="assets/lesson-03.js"></script>
+  <script src="assets/lesson-04.js"></script>
+  <script src="assets/lesson-05.js"></script>
+  <script src="assets/lesson-06.js"></script>
+  <script src="assets/lesson-07.js"></script>
+  <script src="assets/lesson-08.js"></script>
+  <script src="assets/lesson-09.js"></script>
+  <script src="assets/lessons.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    initPage(null);
+    // Render lesson outline
+    const list = document.getElementById("lesson-list");
+    list.innerHTML = LESSONS.map((l, i) => `
+      <div style="padding:8px 0; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center;">
+        <span style="color:var(--text-muted); min-width:20px;">${i}.</span>
+        <a href="lessons/${i.toString().padStart(2,"0")}-${l.slug}.html" style="flex:1;">${l.title}</a>
+        <span style="color:var(--text-muted); font-size:12px;">${l.estimatedMinutes} min</span>
+      </div>`).join("");
+  </script>
+</body>
+</html>
