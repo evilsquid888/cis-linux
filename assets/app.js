@@ -159,3 +159,74 @@ function saveSettings() {
   persist();
   closeSettings();
 }
+
+// ============================================================
+//  Header + sidebar rendering
+// ============================================================
+
+const SECTION_LABELS = {
+  intro: "Getting Started",
+  cis:   "CIS Hardening",
+  stig:  "STIG Lessons",
+  outro: "Wrap-Up"
+};
+
+function renderHeader(currentLessonId) {
+  const host = document.getElementById("header-host");
+  if (!host) return;
+  const completed = LESSONS.filter(l => STATE.lessons[l.id]?.complete).length;
+  const total = LESSONS.length;
+  const pct = total ? Math.round((completed/total)*100) : 0;
+
+  host.innerHTML = `
+    <header class="header">
+      <a href="${rootHref(currentLessonId)}index.html" class="header-title" style="color:inherit;text-decoration:none">CIS Linux Tutorial</a>
+      <div class="header-progress">
+        <div class="progress-text">${completed} of ${total} lessons complete</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="header-actions">
+        <span class="save-status" id="save-status"></span>
+        <button class="btn-icon" id="btn-settings" title="Settings">⚙</button>
+      </div>
+    </header>`;
+  document.getElementById("btn-settings").onclick = openSettings;
+}
+
+function renderSidebar(currentLessonId) {
+  const host = document.getElementById("sidebar-host");
+  if (!host) return;
+
+  const grouped = {};
+  for (const l of LESSONS) {
+    (grouped[l.section] = grouped[l.section] || []).push(l);
+  }
+
+  let html = `<nav class="sidebar">`;
+  for (const sect of ["intro","cis","stig","outro"]) {
+    if (!grouped[sect]) continue;
+    html += `<div class="nav-section-label">${SECTION_LABELS[sect]}</div>`;
+    for (const l of grouped[sect]) {
+      const lst = STATE.lessons[l.id];
+      const isCurrent = l.id === currentLessonId;
+      const isComplete = lst?.complete;
+      const num = LESSONS.indexOf(l);
+      html += `
+        <a class="nav-item${isCurrent ? " active" : ""}${isComplete ? " complete" : ""}"
+           href="${rootHref(currentLessonId)}lessons/${num.toString().padStart(2,"0")}-${l.slug}.html">
+          <span class="nav-item-num">${num}.</span>
+          <span class="check">${isComplete ? "✓" : ""}</span>
+          <span>${l.title}</span>
+        </a>`;
+    }
+  }
+  html += `</nav>`;
+  host.innerHTML = html;
+}
+
+// rootHref returns "" if we are already at repo root (index.html, report.html),
+// or "../" if we're inside lessons/.
+function rootHref(currentLessonId) {
+  // currentLessonId is null/undefined for index.html and report.html
+  return currentLessonId ? "../" : "";
+}
