@@ -75,6 +75,7 @@
     }
     .vm-status.s-stopped { color: var(--text-muted); }
     .vm-status.s-booting { color: var(--warn); }
+    .vm-status.s-staging { color: var(--warn); }
     .vm-status.s-ready   { color: var(--success); }
     .vm-status.s-error   { color: var(--danger); }
 
@@ -86,6 +87,13 @@
       min-height: 360px;
       overflow: auto;
       padding: 8px;
+      outline: 2px solid transparent;
+      outline-offset: -2px;
+      transition: outline-color 0.15s ease;
+    }
+    .vm-screen:focus,
+    .vm-screen.has-focus {
+      outline-color: var(--accent);
     }
     .vm-screen > div {
       font-family: "SF Mono", Menlo, Consolas, monospace;
@@ -95,6 +103,33 @@
       white-space: pre;
     }
     .vm-screen > canvas { display: block; }
+
+    /* Fallback input — always works, regardless of VM focus weirdness.
+       Single-line: enter sends + newline, shift+enter sends raw newline. */
+    .vm-input {
+      display: flex;
+      gap: 6px;
+      padding: 6px 8px;
+      background: var(--code-bg);
+      border-top: 1px solid var(--border);
+    }
+    .vm-input span {
+      color: var(--accent);
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 13px;
+      align-self: center;
+    }
+    .vm-input input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 13px;
+      outline: none;
+    }
+    .vm-input input::placeholder { color: var(--text-muted); opacity: 0.6; }
+    .vm-input input:disabled { opacity: 0.4; }
 
     .vm-hint {
       padding: 8px 12px;
@@ -257,8 +292,13 @@ clientalivecountmax 2</code></pre>
           <div id="vm_screen" class="vm-screen" tabindex="0">
             <div></div><canvas></canvas>
           </div>
+          <div class="vm-input">
+            <span>$</span>
+            <input id="vm-input-line" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   placeholder="Type and press Enter to send to VM" disabled>
+          </div>
           <div class="vm-hint">
-            Tiny Buildroot Linux (~6 MB), busybox userland — augmented at boot with stub <code>sshd</code> / <code>sudo</code> / <code>systemctl</code> shell scripts so the canonical CIS commands work as written. Click inside the screen to focus it before typing; the "▸ Send to VM" buttons type the surrounding command for you.
+            Tiny Buildroot Linux (~6 MB), busybox userland — augmented at boot with stub <code>sshd</code> / <code>sudo</code> / <code>systemctl</code> shell scripts so the canonical CIS commands work as written. Click into the black area to type directly (focused = blue outline); or use the input box above which always works.
           </div>
         </aside>
 
@@ -318,10 +358,20 @@ clientalivecountmax 2</code></pre>
     const stageBtn  = document.getElementById("vm-stage");
     const clearBtn  = document.getElementById("vm-clear");
     const statusEl  = document.getElementById("vm-status");
+    const screenEl  = document.getElementById("vm_screen");
+    const inputEl   = document.getElementById("vm-input-line");
+
+    let staging = false;     // true while auto-stage is typing — block other sends
+    let inputBuffer = "";    // sequence of "▸ Send to VM" calls queued behind the stage
 
     function setStatus(s, label) {
       statusEl.className = "vm-status s-" + s;
       statusEl.textContent = label || s;
+    }
+
+    function setSendButtonsEnabled(on) {
+      document.querySelectorAll(".send-cmd").forEach(b => { b.disabled = !on; });
+      inputEl.disabled = !on;
     }
 
     // ─── Lesson scenario ──────────────────────────────────────────────
@@ -443,9 +493,20 @@ esac
       ].join("\n");
     }
 
-    function sendToVm(text) {
+    // Chunked keyboard send. v86's keyboard_send_text pushes scancodes into the
+    // emulated PS/2 buffer; flooding it (~150 scancodes for a 75-char command,
+    // 600+ for the staging script) overruns the buffer and drops trailing keys.
+    // 64-char chunks with a small yield between them give the kernel time to drain.
+    async function sendToVm(text) {
       if (!emulator) return false;
-      emulator.keyboard_send_text(text);
+      const CHUNK = 64;
+      const DELAY_MS = 25;
+      for (let i = 0; i < text.length; i += CHUNK) {
+        emulator.keyboard_send_text(text.slice(i, i + CHUNK));
+        if (i + CHUNK < text.length) {
+          await new Promise(r => setTimeout(r, DELAY_MS));
+        }
+      }
       return true;
     }
 
@@ -496,59 +557,95 @@ esac
       emulator.add_listener("emulator-ready", () => {
         setStatus("booting", "kernel booting…");
         // Wait for busybox init to drop us at a shell, then prime it.
-        setTimeout(() => {
+        setTimeout(async () => {
+          setStatus("staging", "staging lab…");
+          staging = true;
+          setSendButtonsEnabled(false);
+          // Dismiss "press enter for console", then stage
+          await sendToVm("\n");
+          await new Promise(r => setTimeout(r, 600));
+          await sendToVm(stageScenarioCmd());
+          bootedOnce = true;
+          staging = false;
           setStatus("ready", "ready");
           stageBtn.disabled = false;
           clearBtn.disabled = false;
-          sendToVm("\n");                        // dismiss "press enter for console"
-          setTimeout(() => {
-            sendToVm(stageScenarioCmd());
-            bootedOnce = true;
-          }, 600);
+          setSendButtonsEnabled(true);
+          // Park focus on the screen so the user can immediately type.
+          screenEl.focus();
         }, 4500);
       });
     });
 
-    stageBtn.addEventListener("click", () => {
-      if (!emulator) return;
-      sendToVm(stageScenarioCmd());
+    stageBtn.addEventListener("click", async () => {
+      if (!emulator || staging) return;
+      staging = true;
+      setStatus("staging", "re-staging…");
+      setSendButtonsEnabled(false);
+      await sendToVm(stageScenarioCmd());
+      staging = false;
+      setStatus("ready", "ready");
+      setSendButtonsEnabled(true);
+      screenEl.focus();
     });
 
     clearBtn.addEventListener("click", () => {
-      if (!emulator) return;
+      if (!emulator || staging) return;
       sendToVm("clear\n");
+      screenEl.focus();
     });
 
-    // Wire up "▸ Send to VM" buttons next to code blocks
+    // ─── "▸ Send to VM" buttons ──────────────────────────────────────
     document.querySelectorAll(".send-cmd").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         if (!emulator) {
           alert("Boot the VM first (▶ Boot VM, top-right).");
           return;
         }
+        if (staging) return;          // gated by setSendButtonsEnabled, but be defensive
         const direct = btn.getAttribute("data-cmd");
         if (direct) {
-          sendToVm(direct + "\n");
+          await sendToVm(direct + "\n");
+          screenEl.focus();
           return;
         }
         const key = btn.getAttribute("data-cmd-key");
         if (key === "remediate") {
-          // The full remediate script — type it as one chunk, terminated with newline
+          // Full remediate script. Multi-line, sed + grep guards.
           const script = `sed -i -e 's/^#*PermitRootLogin .*/PermitRootLogin no/' -e 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' -e 's/^#*MaxAuthTries .*/MaxAuthTries 4/' -e 's/^#*ClientAliveInterval .*/ClientAliveInterval 300/' -e 's/^#*ClientAliveCountMax .*/ClientAliveCountMax 2/' /etc/ssh/sshd_config\n` +
             `grep -q '^PermitRootLogin'        /etc/ssh/sshd_config || echo 'PermitRootLogin no'        >> /etc/ssh/sshd_config\n` +
             `grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config\n` +
             `grep -q '^MaxAuthTries'           /etc/ssh/sshd_config || echo 'MaxAuthTries 4'             >> /etc/ssh/sshd_config\n` +
             `grep -q '^ClientAliveInterval'    /etc/ssh/sshd_config || echo 'ClientAliveInterval 300'    >> /etc/ssh/sshd_config\n` +
             `grep -q '^ClientAliveCountMax'    /etc/ssh/sshd_config || echo 'ClientAliveCountMax 2'      >> /etc/ssh/sshd_config\n`;
-          sendToVm(script);
+          await sendToVm(script);
+          screenEl.focus();
         }
       });
     });
 
-    // Click the screen → focus it so keystrokes go to the VM, not the page
-    document.getElementById("vm_screen").addEventListener("click", () => {
-      document.getElementById("vm_screen").focus();
+    // ─── Fallback input box ──────────────────────────────────────────
+    // Always works regardless of VM-screen focus. Enter → send + newline.
+    inputEl.addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter" || staging || !emulator) return;
+      e.preventDefault();
+      const text = inputEl.value;
+      inputEl.value = "";
+      await sendToVm(text + "\n");
     });
+
+    // ─── Focus management ────────────────────────────────────────────
+    // Click anywhere in the screen container → focus it so direct typing works.
+    screenEl.addEventListener("mousedown", (e) => {
+      // Don't steal focus from the canvas (graphical mode would need it directly)
+      // but in text mode (our case) focusing the outer div is fine.
+      screenEl.focus();
+    });
+
+    // Visible focus state — adds .has-focus to the screen container while it
+    // (or any descendant) holds focus. Easier to spot than a thin browser outline.
+    screenEl.addEventListener("focusin",  () => screenEl.classList.add("has-focus"));
+    screenEl.addEventListener("focusout", () => screenEl.classList.remove("has-focus"));
   </script>
 </body>
 </html>
