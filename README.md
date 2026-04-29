@@ -6,7 +6,7 @@ assessment and hardening pass on an Ubuntu 24.04 LTS server. Framed as an
 
 ## Live site
 
-https://<USER>.github.io/cis-linux/
+https://evilsquid888.github.io/cis-linux/
 
 ## Run locally
 
