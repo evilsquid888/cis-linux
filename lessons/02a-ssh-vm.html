@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSH Hardening (with embedded Linux) — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    /* Lab-edition layout: instructions on the left, VM panel sticky on the right.
+       Override the standard .main constraint so we get the full main column. */
+    .main-lab {
+      max-width: none;
+      padding: 24px 32px;
+    }
+    .lab-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 1200px) {
+      .lab-grid { grid-template-columns: 1fr; }
+      .vm-panel { position: static !important; height: auto !important; }
+    }
+
+    .vm-panel {
+      position: sticky;
+      top: 72px;
+      align-self: start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 88px);
+    }
+    .vm-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .vm-toolbar button {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .vm-toolbar button:hover:not(:disabled) {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: white;
+    }
+    .vm-toolbar button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .vm-status {
+      margin-left: auto;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .vm-status.s-stopped { color: var(--text-muted); }
+    .vm-status.s-booting { color: var(--warn); }
+    .vm-status.s-ready   { color: var(--success); }
+    .vm-status.s-error   { color: var(--danger); }
+
+    /* v86 renders into screen_container — a div + canvas pair.
+       For text mode (which is what Buildroot Linux boots into) it fills the inner div. */
+    .vm-screen {
+      background: #000;
+      flex: 1;
+      min-height: 360px;
+      overflow: auto;
+      padding: 8px;
+    }
+    .vm-screen > div {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.2;
+      color: #d6d6d6;
+      white-space: pre;
+    }
+    .vm-screen > canvas { display: block; }
+
+    .vm-hint {
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+    }
+    .vm-hint code {
+      background: var(--code-bg);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    /* Make code blocks in the instruction column slightly tighter so things fit */
+    .lab-instructions pre { font-size: 12.5px; }
+
+    /* "Send to VM" button next to copyable commands — small affordance */
+    .send-cmd {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--accent);
+      cursor: pointer;
+    }
+    .send-cmd:hover { border-color: var(--accent); }
+    .send-cmd:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .lab-blurb {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main main-lab">
+      <h1>Lesson 2a — SSH Hardening <span style="color: var(--accent); font-weight: 400;">· with embedded Linux</span></h1>
+      <div class="lesson-meta">
+        <span>CIS §5.2</span>
+        <span>~15 min</span>
+        <span>4 controls</span>
+        <span><a href="02-ssh.html" style="color: var(--text-muted);">← read-only edition</a></span>
+      </div>
+
+      <div class="lab-blurb">
+        Same content as Lesson 2, with a real Linux VM you can type into. Click <strong>▶ Boot VM</strong> on the right (about 3 seconds to boot). The shell starts with a deliberately weak <code>/etc/ssh/sshd_config</code> in place — your job is to harden it using the commands below.
+      </div>
+
+      <div class="lab-grid">
+
+        <!-- ─────────── Left column: instructions ─────────── -->
+        <div class="lab-instructions">
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🎯</span> Why this matters</h2>
+            <p>SSH is the door to the box. The default OpenSSH config on Ubuntu permits root login, password authentication, and unlimited idle sessions — every one of those is an attacker's best friend. Brute-force scanning of port 22 happens constantly; a weak password on a root account is game-over.</p>
+            <p>This lesson tightens four CIS controls: disable root SSH login, disable password auth in favor of keys, drop MaxAuthTries from 6 to 4, and add an idle-session timeout. Each is one or two lines in <code>/etc/ssh/sshd_config</code>.</p>
+
+            <details class="refresher">
+              <summary>Refresher: what is sshd_config?</summary>
+              <p><code>/etc/ssh/sshd_config</code> configures the SSH <em>server</em> daemon (sshd). Edits take effect after <code>systemctl reload ssh</code>. The companion file <code>/etc/ssh/ssh_config</code> configures the SSH <em>client</em> — leave that alone.</p>
+            </details>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔍</span> Audit — find current state</h2>
+            <p>The VM ships a stub config you can read directly with <code>cat</code>:</p>
+            <pre><code>cat /etc/ssh/sshd_config</code></pre>
+            <button class="send-cmd" data-cmd="cat /etc/ssh/sshd_config">▸ Send to VM</button>
+
+            <p style="margin-top:14px;">Or grep for just the four directives we care about:</p>
+            <pre><code>grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config</code></pre>
+            <button class="send-cmd" data-cmd="grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config">▸ Send to VM</button>
+
+            <p style="margin-top:14px;">CIS-recommended targets:</p>
+            <ul>
+              <li><code>PermitRootLogin</code> = <strong>no</strong></li>
+              <li><code>PasswordAuthentication</code> = <strong>no</strong> (only after a working SSH key is in place)</li>
+              <li><code>MaxAuthTries</code> = <strong>4</strong></li>
+              <li><code>ClientAliveInterval</code> = <strong>300</strong>, <code>ClientAliveCountMax</code> = <strong>2</strong></li>
+            </ul>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔧</span> Remediate</h2>
+
+            <div class="callout warn">
+              <div class="callout-title">Lab-only shortcut</div>
+              <p>On a real box you'd open a second SSH session before changing these settings, to avoid locking yourself out. The VM here is local, so you can experiment freely — break it, reset it, retry.</p>
+            </div>
+
+            <p>Apply all five directives at once with <code>sed</code>, then append any that weren't already present:</p>
+            <pre><code>sed -i \
+  -e 's/^#*PermitRootLogin .*/PermitRootLogin no/' \
+  -e 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' \
+  -e 's/^#*MaxAuthTries .*/MaxAuthTries 4/' \
+  -e 's/^#*ClientAliveInterval .*/ClientAliveInterval 300/' \
+  -e 's/^#*ClientAliveCountMax .*/ClientAliveCountMax 2/' \
+  /etc/ssh/sshd_config
+
+grep -q '^PermitRootLogin'        /etc/ssh/sshd_config || echo 'PermitRootLogin no'        >> /etc/ssh/sshd_config
+grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config
+grep -q '^MaxAuthTries'           /etc/ssh/sshd_config || echo 'MaxAuthTries 4'             >> /etc/ssh/sshd_config
+grep -q '^ClientAliveInterval'    /etc/ssh/sshd_config || echo 'ClientAliveInterval 300'    >> /etc/ssh/sshd_config
+grep -q '^ClientAliveCountMax'    /etc/ssh/sshd_config || echo 'ClientAliveCountMax 2'      >> /etc/ssh/sshd_config</code></pre>
+            <button class="send-cmd" data-cmd-key="remediate">▸ Send to VM</button>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+              On a real Ubuntu host you'd finish with <code>systemctl reload ssh</code>. Buildroot doesn't ship sshd, so skip that here — the file edit is what we're verifying.
+            </p>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">✅</span> Verify — confirm it stuck</h2>
+            <p>Re-run the grep and check all five lines now match the targets:</p>
+            <pre><code>grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config</code></pre>
+            <button class="send-cmd" data-cmd="grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config">▸ Send to VM</button>
+
+            <pre style="margin-top: 12px;"><code># Expected:
+PermitRootLogin no
+PasswordAuthentication no
+MaxAuthTries 4
+ClientAliveInterval 300
+ClientAliveCountMax 2</code></pre>
+
+            <p style="margin-top:14px;">Then tick each check below to record your finding:</p>
+            <ul class="check-list" id="checks-host"></ul>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+            <textarea id="lesson-notes" placeholder="What did you observe? Any anomalies? These notes appear under the SSH findings in the customer report."></textarea>
+          </div>
+
+          <div id="lesson-footer-host"></div>
+        </div>
+
+        <!-- ─────────── Right column: VM ─────────── -->
+        <aside class="vm-panel" id="vm-panel">
+          <div class="vm-toolbar">
+            <button id="vm-boot">▶ Boot VM</button>
+            <button id="vm-stage" disabled title="Re-create the broken /etc/ssh/sshd_config">↻ Reset scenario</button>
+            <button id="vm-clear" disabled title="Clear the screen">⌫ Clear</button>
+            <span id="vm-status" class="vm-status s-stopped">stopped</span>
+          </div>
+          <div id="vm_screen" class="vm-screen" tabindex="0">
+            <div></div><canvas></canvas>
+          </div>
+          <div class="vm-hint">
+            Tiny Buildroot Linux (~6 MB), busybox userland. Click inside the screen to focus it before typing. The "▸ Send to VM" buttons type the surrounding command for you.
+          </div>
+        </aside>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- v86 itself, hosted at copy.sh -->
+  <script src="https://copy.sh/v86/build/libv86.js"></script>
+
+  <!-- Existing lesson registry (unchanged) -->
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+
+  <script>
+    // Reuse the existing lesson-02 progress slot — the lab edition is just an
+    // alternate view, not a separate lesson in the registry.
+    initPage("02-ssh");
+
+    const checks = LESSONS_BY_ID["02-ssh"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("02-ssh");
+
+    // ────────────────────────────────────────────────────────────────
+    // v86 wiring
+    // ────────────────────────────────────────────────────────────────
+    const V86_HOST = "https://copy.sh/v86";
+    let emulator = null;
+    let bootedOnce = false;
+
+    const bootBtn   = document.getElementById("vm-boot");
+    const stageBtn  = document.getElementById("vm-stage");
+    const clearBtn  = document.getElementById("vm-clear");
+    const statusEl  = document.getElementById("vm-status");
+
+    function setStatus(s, label) {
+      statusEl.className = "vm-status s-" + s;
+      statusEl.textContent = label || s;
+    }
+
+    // The deliberately-weak sshd_config the lesson starts from.
+    const WEAK_CONFIG = `# /etc/ssh/sshd_config — default Buildroot stub (intentionally weak)
+#PermitRootLogin yes
+PasswordAuthentication yes
+#MaxAuthTries 6
+#ClientAliveInterval 0
+#ClientAliveCountMax 3
+Port 22
+`;
+
+    // Heredocs are fiddly to type via keyboard_send_text (line endings, EOF
+    // detection). Build the file with printf instead — bulletproof.
+    function stageScenarioCmd() {
+      const escaped = WEAK_CONFIG
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "'\\''");
+      return `mkdir -p /etc/ssh && printf '%s' '${escaped}' > /etc/ssh/sshd_config && clear && echo "Lab ready. Try: cat /etc/ssh/sshd_config"\n`;
+    }
+
+    function sendToVm(text) {
+      if (!emulator) return false;
+      // keyboard_send_text takes plain text and types it as if from the keyboard
+      emulator.keyboard_send_text(text);
+      return true;
+    }
+
+    bootBtn.addEventListener("click", () => {
+      if (emulator) return;
+      setStatus("booting", "booting…");
+      bootBtn.disabled = true;
+
+      try {
+        emulator = new V86({
+          wasm_path:        V86_HOST + "/build/v86.wasm",
+          memory_size:      64 * 1024 * 1024,
+          vga_memory_size:  2 * 1024 * 1024,
+          screen_container: document.getElementById("vm_screen"),
+          bios:     { url: V86_HOST + "/bios/seabios.bin" },
+          vga_bios: { url: V86_HOST + "/bios/vgabios.bin" },
+          cdrom:    { url: V86_HOST + "/images/linux4.iso" },
+          autostart: true,
+        });
+      } catch (e) {
+        console.error(e);
+        setStatus("error", "load failed");
+        bootBtn.disabled = false;
+        return;
+      }
+
+      // Linux 4 boots quickly. Wait for the kernel to settle, then auto-stage.
+      // We listen for the v86 "emulator-ready" event, then add a small delay
+      // for the busybox login to print its prompt.
+      emulator.add_listener("emulator-ready", () => {
+        setTimeout(() => {
+          setStatus("ready", "ready");
+          stageBtn.disabled = false;
+          clearBtn.disabled = false;
+          // Press Enter to dismiss any "Press Enter to activate this console" message
+          sendToVm("\n");
+          setTimeout(() => {
+            sendToVm(stageScenarioCmd());
+            bootedOnce = true;
+          }, 500);
+        }, 4000);
+      });
+
+      // If the wasm or images fail to load, surface that
+      emulator.add_listener("download-error", (info) => {
+        console.error("v86 download error:", info);
+        setStatus("error", "asset failed");
+      });
+    });
+
+    stageBtn.addEventListener("click", () => {
+      if (!emulator) return;
+      sendToVm(stageScenarioCmd());
+    });
+
+    clearBtn.addEventListener("click", () => {
+      if (!emulator) return;
+      sendToVm("clear\n");
+    });
+
+    // Wire up "▸ Send to VM" buttons next to code blocks
+    document.querySelectorAll(".send-cmd").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (!emulator) {
+          alert("Boot the VM first (▶ Boot VM, top-right).");
+          return;
+        }
+        const direct = btn.getAttribute("data-cmd");
+        if (direct) {
+          sendToVm(direct + "\n");
+          return;
+        }
+        const key = btn.getAttribute("data-cmd-key");
+        if (key === "remediate") {
+          // The full remediate script — type it as one chunk, terminated with newline
+          const script = `sed -i -e 's/^#*PermitRootLogin .*/PermitRootLogin no/' -e 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' -e 's/^#*MaxAuthTries .*/MaxAuthTries 4/' -e 's/^#*ClientAliveInterval .*/ClientAliveInterval 300/' -e 's/^#*ClientAliveCountMax .*/ClientAliveCountMax 2/' /etc/ssh/sshd_config\n` +
+            `grep -q '^PermitRootLogin'        /etc/ssh/sshd_config || echo 'PermitRootLogin no'        >> /etc/ssh/sshd_config\n` +
+            `grep -q '^PasswordAuthentication' /etc/ssh/sshd_config || echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config\n` +
+            `grep -q '^MaxAuthTries'           /etc/ssh/sshd_config || echo 'MaxAuthTries 4'             >> /etc/ssh/sshd_config\n` +
+            `grep -q '^ClientAliveInterval'    /etc/ssh/sshd_config || echo 'ClientAliveInterval 300'    >> /etc/ssh/sshd_config\n` +
+            `grep -q '^ClientAliveCountMax'    /etc/ssh/sshd_config || echo 'ClientAliveCountMax 2'      >> /etc/ssh/sshd_config\n`;
+          sendToVm(script);
+        }
+      });
+    });
+
+    // Click the screen → focus it so keystrokes go to the VM, not the page
+    document.getElementById("vm_screen").addEventListener("click", () => {
+      document.getElementById("vm_screen").focus();
+    });
+  </script>
+</body>
+</html>
