@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 1 — Welcome</h1>
+      <div class="lesson-meta"><span>Intro</span><span>~3 min</span></div>
+
+      <p>You've been brought in by <strong>Acme Corp</strong> to do a quick CIS-style audit on one of their Ubuntu 24.04 servers. By the end of this short course you'll have run a real audit, applied a few high-impact remediations, and produced a customer-facing report.</p>
+
+      <h2>What is CIS?</h2>
+      <p>The Center for Internet Security publishes free hardening benchmarks for OSes, applications, and cloud services. The full Ubuntu 24.04 benchmark contains ~250 controls. We'll cover the highest-impact slice — SSH, host firewall, user accounts — plus a taste of DISA STIG (the DoD's stricter cousin).</p>
+
+      <details class="refresher">
+        <summary>Refresher: what does "hardening" mean?</summary>
+        <p>Hardening means reducing a system's attack surface by changing default-permissive settings to secure ones. A fresh Ubuntu install is reasonable but optimized for ease, not security. Hardening tightens those defaults: disable services you don't need, restrict who can log in, lock down crypto algorithms, force password complexity, etc.</p>
+      </details>
+
+      <h2>The audit → remediate → verify loop</h2>
+      <p>Every lesson follows the same rhythm:</p>
+      <ul>
+        <li><strong>Concept</strong> — what the control is and why it matters</li>
+        <li><strong>Audit</strong> — run a command to find the current state</li>
+        <li><strong>Remediate</strong> — apply the fix</li>
+        <li><strong>Verify</strong> — re-run the audit to confirm the fix worked, then tick the check</li>
+      </ul>
+      <p>Tick a check only when you've actually run the verification on your lab. Those ticks become the findings in your customer report.</p>
+
+      <h2>Set your details</h2>
+      <p>The customer report uses these. You can edit them any time via Settings (⚙).</p>
+      <div class="lesson-block">
+        <div class="form-group">
+          <label for="welcome-assessor">Your name (assessor)</label>
+          <input type="text" id="welcome-assessor" placeholder="Jane Doe">
+        </div>
+        <div class="form-group">
+          <label for="welcome-org">Your organization (optional)</label>
+          <input type="text" id="welcome-org" placeholder="Contoso Consulting">
+        </div>
+        <div class="form-group">
+          <label for="welcome-customer">Customer name</label>
+          <input type="text" id="welcome-customer" placeholder="Acme Corp">
+        </div>
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>
+    initPage("01-welcome");
+    // Wire welcome form to STATE.metadata
+    const a = document.getElementById("welcome-assessor");
+    const o = document.getElementById("welcome-org");
+    const c = document.getElementById("welcome-customer");
+    a.value = STATE.metadata.assessorName;
+    o.value = STATE.metadata.assessorOrg;
+    c.value = STATE.metadata.customerName;
+    a.addEventListener("input", () => { STATE.metadata.assessorName = a.value.trim(); persist(); });
+    o.addEventListener("input", () => { STATE.metadata.assessorOrg  = o.value.trim(); persist(); });
+    c.addEventListener("input", () => { STATE.metadata.customerName = c.value.trim() || "Acme Corp"; persist(); });
+  </script>
+</body>
+</html>
