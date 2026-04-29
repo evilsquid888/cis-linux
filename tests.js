@@ -133,8 +133,9 @@ function makeState(completedHardening, checksTickedRatio = 1.0) {
 // Load assessment.js
 loadScript("assets/assessment.js", ctx);
 
-test("computeJudgment returns 'solid' when 4/5 hardening + 60% checks", () => {
-  const s = makeState(["02-ssh","03-ufw","04-user-audit","06-stig-ssh-crypto"], 0.7);
+test("computeJudgment returns 'solid' when 4/5 hardening + ≥60% checks", () => {
+  // ratio 0.85 → floor() yields actual coverage ≈75%, comfortably above 60% threshold
+  const s = makeState(["02-ssh","03-ufw","04-user-audit","06-stig-ssh-crypto"], 0.85);
   assert.strictEqual(ctx.computeJudgment(s).tier, "solid");
 });
 

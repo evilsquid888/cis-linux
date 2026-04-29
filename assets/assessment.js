@@ -21,7 +21,7 @@ function computeJudgment(state) {
   const notedCount = hardeningIds.filter(id => (state.lessons[id]?.notes || "").trim().length > 0).length;
 
   let tier;
-  if (completedCount >= 4 && checkRatio >= 0.55)      tier = "solid";
+  if (completedCount >= 4 && checkRatio >= 0.6)       tier = "solid";
   else if (completedCount >= 3)                       tier = "reasonable";
   else                                                tier = "needs-work";
 
