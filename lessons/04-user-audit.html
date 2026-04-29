@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Account Audit — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 4 — User Account Audit</h1>
+      <div class="lesson-meta"><span>CIS §5.3 + §5.4</span><span>~10 min</span><span>5 controls</span></div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🎯</span> Why this matters</h2>
+        <p>The first thing any defender does on a new box is "who has access here?" A forgotten service account with a UID-0 alias, an empty-password row in /etc/shadow, a cron user with a valid login shell — these are some of the most common findings in real engagements. This is mostly read-only — you're auditing, not breaking.</p>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔍</span> Audit — five quick checks</h2>
+
+        <h3>1. Anyone else with UID 0?</h3>
+        <pre><code>awk -F: '($3==0){print}' /etc/passwd
+# Expected: exactly one line — root</code></pre>
+
+        <h3>2. Any empty passwords?</h3>
+        <pre><code>sudo awk -F: '($2==""){print $1}' /etc/shadow
+# Expected: nothing</code></pre>
+
+        <h3>3. System accounts (UID&lt;1000) — should have nologin shells</h3>
+        <pre><code>awk -F: '($3&lt;1000 &amp;&amp; $1!="root"){print $1, $7}' /etc/passwd | grep -vE '/(usr/)?sbin/nologin|/bin/false'
+# Expected: empty (or only special entries you can justify)</code></pre>
+
+        <h3>4. Password aging policy</h3>
+        <pre><code>grep -E '^PASS_(MAX|MIN|WARN)_' /etc/login.defs
+# Expected:
+# PASS_MAX_DAYS  365
+# PASS_MIN_DAYS  1
+# PASS_WARN_AGE  7</code></pre>
+
+        <h3>5. Last-login activity</h3>
+        <pre><code>lastlog | grep -v 'Never logged in'
+last -a | head -20
+# Document anything anomalous</code></pre>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔧</span> Remediate (only what's broken)</h2>
+        <p>Findings dictate fixes. Common ones:</p>
+        <pre><code># Lock an empty-password account
+sudo passwd -l alice
+
+# Change a system account's shell to nologin
+sudo usermod -s /usr/sbin/nologin svc-batch
+
+# Apply password aging defaults
+sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS  365/'  /etc/login.defs
+sudo sed -i 's/^PASS_MIN_DAYS.*/PASS_MIN_DAYS  1/'    /etc/login.defs
+sudo sed -i 's/^PASS_WARN_AGE.*/PASS_WARN_AGE  7/'    /etc/login.defs</code></pre>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">✅</span> Verify</h2>
+        <p>Re-run the five audit commands. Tick each check below as you confirm it's in good state:</p>
+        <ul class="check-list" id="checks-host"></ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+        <textarea id="lesson-notes" placeholder="Document any unusual accounts, login activity, or aging policy gaps."></textarea>
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>
+    initPage("04-user-audit");
+    const checks = LESSONS_BY_ID["04-user-audit"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("04-user-audit");
+  </script>
+</body>
+</html>
