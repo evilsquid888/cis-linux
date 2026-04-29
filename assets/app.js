@@ -230,3 +230,105 @@ function rootHref(currentLessonId) {
   // currentLessonId is null/undefined for index.html and report.html
   return currentLessonId ? "../" : "";
 }
+
+// ============================================================
+//  Page init + lesson interactions
+// ============================================================
+
+// Called by every lesson page. lessonId may be null for index/report.
+function initPage(lessonId) {
+  renderHeader(lessonId);
+  renderSidebar(lessonId);
+
+  if (lessonId) {
+    markVisited(lessonId);
+    bindLessonChecks(lessonId);
+    bindLessonNotes(lessonId);
+    renderLessonFooter(lessonId);
+    bindCopyButtons();
+  }
+}
+
+function markVisited(lessonId) {
+  const ls = STATE.lessons[lessonId];
+  if (!ls.visited) {
+    ls.visited = true;
+    ls.visitedAt = new Date().toISOString();
+    persist();
+  }
+}
+
+// Each <input class="check-toggle" data-check-id="ssh.permit_root_login"> is
+// bound to STATE.lessons[lessonId].checks[id].ticked.
+function bindLessonChecks(lessonId) {
+  const ls = STATE.lessons[lessonId];
+  document.querySelectorAll(".check-toggle").forEach(box => {
+    const cid = box.dataset.checkId;
+    if (!cid || !ls.checks[cid]) return;
+    box.checked = ls.checks[cid].ticked;
+    box.addEventListener("change", () => {
+      ls.checks[cid].ticked = box.checked;
+      ls.checks[cid].finding = box.checked ? "pass" : "fail";
+      persist();
+    });
+  });
+}
+
+function bindLessonNotes(lessonId) {
+  const ta = document.getElementById("lesson-notes");
+  if (!ta) return;
+  ta.value = STATE.lessons[lessonId].notes || "";
+  ta.addEventListener("input", () => {
+    STATE.lessons[lessonId].notes = ta.value;
+    persist();
+  });
+}
+
+function renderLessonFooter(lessonId) {
+  const host = document.getElementById("lesson-footer-host");
+  if (!host) return;
+  const idx = LESSONS.findIndex(l => l.id === lessonId);
+  const prev = LESSONS[idx - 1];
+  const next = LESSONS[idx + 1];
+  const isComplete = STATE.lessons[lessonId].complete;
+  const prevHref = prev
+    ? `${LESSONS.indexOf(prev).toString().padStart(2,"0")}-${prev.slug}.html`
+    : "../index.html";
+  const nextHref = next
+    ? `${LESSONS.indexOf(next).toString().padStart(2,"0")}-${next.slug}.html`
+    : null;
+
+  host.innerHTML = `
+    <div class="lesson-footer">
+      <a class="btn" href="${prevHref}">${prev ? "← " + prev.title : "← Home"}</a>
+      ${nextHref
+        ? `<button class="btn btn-primary" id="btn-mark-next">${isComplete ? "Continue →" : "Mark complete & continue →"}</button>`
+        : `<button class="btn btn-primary" id="btn-mark-next">${isComplete ? "Course complete 🎉" : "Mark complete 🎉"}</button>`}
+    </div>`;
+
+  document.getElementById("btn-mark-next").onclick = () => {
+    const ls = STATE.lessons[lessonId];
+    if (!ls.complete) {
+      ls.complete = true;
+      ls.completedAt = new Date().toISOString();
+      persist();
+    }
+    if (nextHref) location.href = nextHref;
+    else alert("Course complete! Open Lesson 8 to generate your customer report.");
+  };
+}
+
+function bindCopyButtons() {
+  document.querySelectorAll("pre").forEach(pre => {
+    if (pre.querySelector(".copy-btn")) return;
+    const btn = document.createElement("button");
+    btn.className = "copy-btn";
+    btn.textContent = "Copy";
+    btn.onclick = () => {
+      navigator.clipboard.writeText(pre.querySelector("code")?.textContent || pre.textContent);
+      btn.textContent = "Copied!";
+      setTimeout(() => btn.textContent = "Copy", 1500);
+    };
+    pre.appendChild(btn);
+  });
+}
