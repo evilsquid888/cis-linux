@@ -151,7 +151,7 @@
       </div>
 
       <div class="lab-blurb">
-        Same content as Lesson 2, with a real Linux VM you can type into. Click <strong>▶ Boot VM</strong> on the right (about 3 seconds to boot). The shell starts with a deliberately weak <code>/etc/ssh/sshd_config</code> in place — your job is to harden it using the commands below.
+        Same content as Lesson 2, with a real Linux VM you can type into. Click <strong>▶ Boot VM</strong> on the right (about 3 seconds to boot). The shell starts with a deliberately weak <code>/etc/ssh/sshd_config</code> plus stub <code>sshd</code>, <code>sudo</code>, and <code>systemctl</code> shims so the canonical CIS audit commands (<code>sudo sshd -T</code>, <code>systemctl reload ssh</code>) actually work end-to-end.
       </div>
 
       <div class="lab-grid">
@@ -172,13 +172,13 @@
 
           <div class="lesson-block">
             <h2><span class="block-icon">🔍</span> Audit — find current state</h2>
-            <p>The VM ships a stub config you can read directly with <code>cat</code>:</p>
+            <p>Use <code>sshd -T</code> to see the <strong>effective</strong> running config (file + defaults merged) — this is what the daemon would actually behave like at runtime, and what CIS auditors check:</p>
+            <pre><code>sudo sshd -T | grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive'</code></pre>
+            <button class="send-cmd" data-cmd="sudo sshd -T | grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive'">▸ Send to VM</button>
+
+            <p style="margin-top:14px;">You can also read the file directly:</p>
             <pre><code>cat /etc/ssh/sshd_config</code></pre>
             <button class="send-cmd" data-cmd="cat /etc/ssh/sshd_config">▸ Send to VM</button>
-
-            <p style="margin-top:14px;">Or grep for just the four directives we care about:</p>
-            <pre><code>grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config</code></pre>
-            <button class="send-cmd" data-cmd="grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config">▸ Send to VM</button>
 
             <p style="margin-top:14px;">CIS-recommended targets:</p>
             <ul>
@@ -212,23 +212,27 @@ grep -q '^MaxAuthTries'           /etc/ssh/sshd_config || echo 'MaxAuthTries 4' 
 grep -q '^ClientAliveInterval'    /etc/ssh/sshd_config || echo 'ClientAliveInterval 300'    >> /etc/ssh/sshd_config
 grep -q '^ClientAliveCountMax'    /etc/ssh/sshd_config || echo 'ClientAliveCountMax 2'      >> /etc/ssh/sshd_config</code></pre>
             <button class="send-cmd" data-cmd-key="remediate">▸ Send to VM</button>
+
+            <p style="margin-top:14px;">Then reload the daemon to pick up the new config:</p>
+            <pre><code>sudo systemctl reload ssh</code></pre>
+            <button class="send-cmd" data-cmd="sudo systemctl reload ssh">▸ Send to VM</button>
             <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
-              On a real Ubuntu host you'd finish with <code>systemctl reload ssh</code>. Buildroot doesn't ship sshd, so skip that here — the file edit is what we're verifying.
+              The lab's <code>systemctl</code> is a stub — it prints what it would do but no real daemon is running. The file edit is what gets graded; <code>sshd -T</code> re-parses the config every invocation, so reload isn't actually required to verify here.
             </p>
           </div>
 
           <div class="lesson-block">
             <h2><span class="block-icon">✅</span> Verify — confirm it stuck</h2>
-            <p>Re-run the grep and check all five lines now match the targets:</p>
-            <pre><code>grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config</code></pre>
-            <button class="send-cmd" data-cmd="grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive' /etc/ssh/sshd_config">▸ Send to VM</button>
+            <p>Re-run the audit. All five effective values should now match the CIS targets:</p>
+            <pre><code>sudo sshd -T | grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive'</code></pre>
+            <button class="send-cmd" data-cmd="sudo sshd -T | grep -iE 'permitrootlogin|passwordauth|maxauthtries|clientalive'">▸ Send to VM</button>
 
             <pre style="margin-top: 12px;"><code># Expected:
-PermitRootLogin no
-PasswordAuthentication no
-MaxAuthTries 4
-ClientAliveInterval 300
-ClientAliveCountMax 2</code></pre>
+permitrootlogin no
+passwordauthentication no
+maxauthtries 4
+clientaliveinterval 300
+clientalivecountmax 2</code></pre>
 
             <p style="margin-top:14px;">Then tick each check below to record your finding:</p>
             <ul class="check-list" id="checks-host"></ul>
@@ -254,7 +258,7 @@ ClientAliveCountMax 2</code></pre>
             <div></div><canvas></canvas>
           </div>
           <div class="vm-hint">
-            Tiny Buildroot Linux (~6 MB), busybox userland. Click inside the screen to focus it before typing. The "▸ Send to VM" buttons type the surrounding command for you.
+            Tiny Buildroot Linux (~6 MB), busybox userland — augmented at boot with stub <code>sshd</code> / <code>sudo</code> / <code>systemctl</code> shell scripts so the canonical CIS commands work as written. Click inside the screen to focus it before typing; the "▸ Send to VM" buttons type the surrounding command for you.
           </div>
         </aside>
 
@@ -262,8 +266,10 @@ ClientAliveCountMax 2</code></pre>
     </main>
   </div>
 
-  <!-- v86 itself, hosted at copy.sh -->
-  <script src="https://copy.sh/v86/build/libv86.js"></script>
+  <!-- v86 — vendored locally so everything is same-origin (copy.sh assets
+       don't set Access-Control-Allow-Origin, which silently kills the wasm fetch
+       when this page is hosted on github.io). -->
+  <script src="../assets/v86/libv86.js"></script>
 
   <!-- Existing lesson registry (unchanged) -->
   <script src="../assets/lesson-00.js"></script>
@@ -299,7 +305,12 @@ ClientAliveCountMax 2</code></pre>
     // ────────────────────────────────────────────────────────────────
     // v86 wiring
     // ────────────────────────────────────────────────────────────────
-    const V86_HOST = "https://copy.sh/v86";
+    // All assets are vendored under ../assets/v86/ so this page is fully
+    // same-origin. (copy.sh, where v86 demos are usually loaded from, doesn't
+    // expose CORS headers — the wasm fetch silently aborts in cross-origin use,
+    // which manifests as "stuck in booting forever".)
+    const V86_BASE = "../assets/v86";
+
     let emulator = null;
     let bootedOnce = false;
 
@@ -313,76 +324,188 @@ ClientAliveCountMax 2</code></pre>
       statusEl.textContent = label || s;
     }
 
-    // The deliberately-weak sshd_config the lesson starts from.
-    const WEAK_CONFIG = `# /etc/ssh/sshd_config — default Buildroot stub (intentionally weak)
+    // ─── Lesson scenario ──────────────────────────────────────────────
+    // Deliberately-weak default config. Mirrors what a fresh Ubuntu OpenSSH
+    // ships with for the directives CIS audits.
+    const WEAK_CONFIG = `# /etc/ssh/sshd_config — lab stub (intentionally weak defaults)
 #PermitRootLogin yes
 PasswordAuthentication yes
 #MaxAuthTries 6
 #ClientAliveInterval 0
 #ClientAliveCountMax 3
 Port 22
+Protocol 2
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+X11Forwarding yes
 `;
 
-    // Heredocs are fiddly to type via keyboard_send_text (line endings, EOF
-    // detection). Build the file with printf instead — bulletproof.
+    // Stub sshd: parses /etc/ssh/sshd_config and prints the effective config
+    // the way real OpenSSH's `sshd -T` does, including OpenSSH's compiled-in
+    // defaults for any directive that's commented or absent.
+    const STUB_SSHD = `#!/bin/sh
+# Lab-only sshd stub. Reads /etc/ssh/sshd_config and prints the effective
+# runtime config the way \`sshd -T\` does on a real Ubuntu host.
+CONFIG=/etc/ssh/sshd_config
+case "$1" in
+  -T)
+    awk '
+      BEGIN {
+        # OpenSSH compiled-in defaults for the directives CIS cares about
+        d["permitrootlogin"]         = "yes"
+        d["passwordauthentication"]  = "yes"
+        d["maxauthtries"]            = "6"
+        d["clientaliveinterval"]     = "0"
+        d["clientalivecountmax"]     = "3"
+        d["port"]                    = "22"
+        d["protocol"]                = "2"
+        d["pubkeyauthentication"]    = "yes"
+        d["permitemptypasswords"]    = "no"
+        d["x11forwarding"]           = "yes"
+        d["usepam"]                  = "yes"
+      }
+      /^[[:space:]]*#/ { next }
+      NF == 0          { next }
+      {
+        key = tolower($1)
+        val = ""
+        for (i=2; i<=NF; i++) val = (val == "" ? $i : val " " $i)
+        d[key] = val
+      }
+      END { for (k in d) printf "%s %s\\n", k, d[k] }
+    ' "$CONFIG" | sort
+    ;;
+  -t)
+    echo "Configuration syntax OK (lab stub)"
+    ;;
+  -h|--help|"")
+    echo "Lab sshd stub. Use 'sshd -T' for effective config, 'sshd -t' for syntax check."
+    ;;
+  *)
+    echo "Lab sshd stub: unsupported flag $1"
+    exit 1
+    ;;
+esac
+`;
+
+    // Stub sudo: single-user busybox box, just exec the command
+    const STUB_SUDO = `#!/bin/sh
+exec "$@"
+`;
+
+    // Stub systemctl: prints what it would do, no real daemons running
+    const STUB_SYSTEMCTL = `#!/bin/sh
+svc="\${2:-ssh}"
+case "$1" in
+  reload|restart)
+    echo "[lab] $svc \${1}ed — would re-read /etc/ssh/sshd_config"
+    ;;
+  status)
+    echo "● $svc.service - OpenBSD Secure Shell server (lab stub)"
+    echo "     Loaded: loaded (/etc/init.d/$svc; enabled)"
+    echo "     Active: active (running) since boot"
+    ;;
+  is-active)  echo "active" ;;
+  is-enabled) echo "enabled" ;;
+  *)          echo "[lab] systemctl $* (stub — no-op)" ;;
+esac
+`;
+
+    // Build a single shell script that plants config + stubs and updates PATH.
+    // Heredocs with a single-quoted delimiter (<<'__LAB_END__') prevent shell
+    // expansion of $vars / backticks inside the body, so the script bodies
+    // ship verbatim.
     function stageScenarioCmd() {
-      const escaped = WEAK_CONFIG
-        .replace(/\\/g, "\\\\")
-        .replace(/'/g, "'\\''");
-      return `mkdir -p /etc/ssh && printf '%s' '${escaped}' > /etc/ssh/sshd_config && clear && echo "Lab ready. Try: cat /etc/ssh/sshd_config"\n`;
+      return [
+        "mkdir -p /etc/ssh /usr/local/bin",
+        "cat > /etc/ssh/sshd_config <<'__LAB_END__'",
+        WEAK_CONFIG.trimEnd(),
+        "__LAB_END__",
+        "cat > /usr/local/bin/sshd <<'__LAB_END__'",
+        STUB_SSHD.trimEnd(),
+        "__LAB_END__",
+        "chmod +x /usr/local/bin/sshd",
+        "cat > /usr/local/bin/sudo <<'__LAB_END__'",
+        STUB_SUDO.trimEnd(),
+        "__LAB_END__",
+        "chmod +x /usr/local/bin/sudo",
+        "cat > /usr/local/bin/systemctl <<'__LAB_END__'",
+        STUB_SYSTEMCTL.trimEnd(),
+        "__LAB_END__",
+        "chmod +x /usr/local/bin/systemctl",
+        "export PATH=/usr/local/bin:$PATH",
+        "grep -q '/usr/local/bin' /etc/profile 2>/dev/null || echo 'export PATH=/usr/local/bin:$PATH' >> /etc/profile",
+        "clear",
+        "echo \"Lab ready. /etc/ssh/sshd_config + stub sshd/sudo/systemctl staged.\"",
+        "echo",
+        "echo \"Try: sudo sshd -T | grep -iE 'permitrootlogin|password|maxauth|clientalive'\"",
+        "",
+      ].join("\n");
     }
 
     function sendToVm(text) {
       if (!emulator) return false;
-      // keyboard_send_text takes plain text and types it as if from the keyboard
       emulator.keyboard_send_text(text);
       return true;
     }
 
+    // ─── Boot button ──────────────────────────────────────────────────
     bootBtn.addEventListener("click", () => {
       if (emulator) return;
-      setStatus("booting", "booting…");
+      setStatus("booting", "loading wasm…");
       bootBtn.disabled = true;
 
       try {
         emulator = new V86({
-          wasm_path:        V86_HOST + "/build/v86.wasm",
+          wasm_path:        V86_BASE + "/v86.wasm",
           memory_size:      64 * 1024 * 1024,
           vga_memory_size:  2 * 1024 * 1024,
           screen_container: document.getElementById("vm_screen"),
-          bios:     { url: V86_HOST + "/bios/seabios.bin" },
-          vga_bios: { url: V86_HOST + "/bios/vgabios.bin" },
-          cdrom:    { url: V86_HOST + "/images/linux4.iso" },
+          bios:     { url: V86_BASE + "/seabios.bin" },
+          vga_bios: { url: V86_BASE + "/vgabios.bin" },
+          cdrom:    { url: V86_BASE + "/linux4.iso" },
           autostart: true,
         });
       } catch (e) {
-        console.error(e);
-        setStatus("error", "load failed");
+        console.error("[lab] V86 constructor threw:", e);
+        setStatus("error", "init failed (see console)");
         bootBtn.disabled = false;
         return;
       }
 
-      // Linux 4 boots quickly. Wait for the kernel to settle, then auto-stage.
-      // We listen for the v86 "emulator-ready" event, then add a small delay
-      // for the busybox login to print its prompt.
+      // Surface real progress so a stuck boot is debuggable, not silent.
+      let totalLoaded = 0;
+      emulator.add_listener("download-progress", (info) => {
+        if (info && typeof info.loaded === "number") {
+          totalLoaded = info.loaded;
+          const mb = (totalLoaded / (1024 * 1024)).toFixed(1);
+          setStatus("booting", `loading… ${mb} MB`);
+        }
+      });
+
+      emulator.add_listener("download-error", (info) => {
+        console.error("[lab] v86 download error:", info);
+        setStatus("error", "asset failed (see console)");
+      });
+
+      emulator.add_listener("emulator-loaded", () => {
+        setStatus("booting", "wasm loaded — booting kernel…");
+      });
+
+      // emulator-ready fires once init is complete; boot still takes a moment.
       emulator.add_listener("emulator-ready", () => {
+        setStatus("booting", "kernel booting…");
+        // Wait for busybox init to drop us at a shell, then prime it.
         setTimeout(() => {
           setStatus("ready", "ready");
           stageBtn.disabled = false;
           clearBtn.disabled = false;
-          // Press Enter to dismiss any "Press Enter to activate this console" message
-          sendToVm("\n");
+          sendToVm("\n");                        // dismiss "press enter for console"
           setTimeout(() => {
             sendToVm(stageScenarioCmd());
             bootedOnce = true;
-          }, 500);
-        }, 4000);
-      });
-
-      // If the wasm or images fail to load, surface that
-      emulator.add_listener("download-error", (info) => {
-        console.error("v86 download error:", info);
-        setStatus("error", "asset failed");
+          }, 600);
+        }, 4500);
       });
     });
 
