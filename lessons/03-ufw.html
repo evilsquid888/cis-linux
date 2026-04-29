@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UFW Host Firewall — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 3 — UFW Host Firewall</h1>
+      <div class="lesson-meta"><span>CIS §3.5</span><span>~7 min</span><span>4 controls</span></div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🎯</span> Why this matters</h2>
+        <p>A host firewall is your last line of defense if something else goes wrong — an exposed service binds 0.0.0.0 by accident, a config drifts, a teammate runs <code>nc -lp 4444</code> for "just a minute." UFW (Uncomplicated Firewall) is Ubuntu's friendly nftables/iptables wrapper. CIS wants it installed, enabled, set to default-deny, with explicit allow rules only for what you actually need.</p>
+        <details class="refresher">
+          <summary>Refresher: default-deny vs default-allow</summary>
+          <p>Default-deny means "drop anything not explicitly allowed." Default-allow means "permit anything not explicitly denied." Default-deny is safer because new services don't accidentally become reachable.</p>
+        </details>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔍</span> Audit</h2>
+        <pre><code>dpkg -l ufw | tail -1
+sudo ufw status verbose
+ss -tlnp        # what's listening, totally separate from ufw — sanity check</code></pre>
+        <p>You're looking for: <code>ufw</code> installed, <code>Status: active</code>, default deny incoming, only port 22 (SSH) allowed.</p>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🔧</span> Remediate</h2>
+        <div class="callout danger">
+          <div class="callout-title">Order matters — allow SSH FIRST</div>
+          If you enable default-deny before allowing SSH, you instantly lose your remote session. Run the <code>ufw allow 22/tcp</code> line first.
+        </div>
+        <pre><code>sudo apt install -y ufw
+sudo ufw allow 22/tcp                  # &lt;-- BEFORE the deny
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw --force enable
+sudo systemctl enable ufw</code></pre>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">✅</span> Verify</h2>
+        <pre><code>sudo ufw status verbose
+# Expected:
+#   Status: active
+#   Logging: on (low)
+#   Default: deny (incoming), allow (outgoing), disabled (routed)
+#   To              Action      From
+#   --              ------      ----
+#   22/tcp          ALLOW IN    Anywhere</code></pre>
+        <ul class="check-list" id="checks-host"></ul>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+        <textarea id="lesson-notes" placeholder="What did you observe? Were there other open ports?"></textarea>
+      </div>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>
+    initPage("03-ufw");
+    const checks = LESSONS_BY_ID["03-ufw"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("03-ufw");
+  </script>
+</body>
+</html>
