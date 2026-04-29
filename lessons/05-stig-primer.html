@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STIG Primer — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main">
+      <h1>Lesson 5 — STIG Primer</h1>
+      <div class="lesson-meta"><span>DISA STIG</span><span>~3 min</span></div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">📘</span> What is a STIG?</h2>
+        <p><strong>STIG</strong> = Security Technical Implementation Guide. STIGs are published by DISA (the U.S. Defense Information Systems Agency) and are the hardening standard the Department of Defense uses for everything from Windows servers to F-35 avionics consoles. Where CIS is "industry best practice," STIG is "DoD policy with audit findings attached."</p>
+
+        <p>If you work for a defense contractor, federal civilian agency that's adopted STIG, or a vendor selling into them, you'll be required to ship STIG-compliant systems and produce STIG-compliant evidence.</p>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">⚖️</span> STIG vs. CIS — what's the difference?</h2>
+        <p>Mostly: STIG is stricter, more prescriptive, and more crypto-focused. Examples we'll see:</p>
+        <ul>
+          <li><strong>SSH crypto:</strong> CIS allows a broad set of ciphers; STIG restricts to a FIPS-approved subset.</li>
+          <li><strong>Passwords:</strong> CIS recommends minlen 14; STIG mandates 15 with explicit complexity classes.</li>
+          <li><strong>Lockout:</strong> CIS suggests lockout policy; STIG specifies 3 failed attempts.</li>
+          <li><strong>Audit / banner:</strong> STIG mandates the DoD warning banner verbatim; CIS doesn't care about wording.</li>
+        </ul>
+        <p>Many controls are identical. Where they differ, STIG is almost always the stricter side.</p>
+      </div>
+
+      <div class="lesson-block">
+        <h2><span class="block-icon">🛠</span> How STIGs are distributed</h2>
+        <p>DISA publishes STIGs as XCCDF/SCAP XML datastreams plus human-readable PDFs at <a href="https://public.cyber.mil/stigs/downloads/" target="_blank">public.cyber.mil</a>. The Ubuntu 24.04 STIG is freely downloadable; you'll find a copy in this repo at <code>/pdfs/DISA_STIG_Ubuntu_24.04.pdf</code>. Every control has a <strong>V-ID</strong> (e.g., <code>V-260547</code>) — when you cite STIG findings to a customer, you cite the V-ID.</p>
+      </div>
+
+      <p>The next two lessons walk through specific STIG controls so you can see the difference firsthand.</p>
+
+      <div id="lesson-footer-host"></div>
+    </main>
+  </div>
+
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script>initPage("05-stig-primer");</script>
+</body>
+</html>
