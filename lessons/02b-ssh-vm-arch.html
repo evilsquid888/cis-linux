@@ -194,8 +194,11 @@ clientalivecountmax 2</code></pre>
       vga_memory_size:  8   * 1024 * 1024,
       bios:     { url: "../assets/v86/seabios.bin" },
       vga_bios: { url: "../assets/v86/vgabios.bin" },
-      state:    { url: ARCH_HOST + "arch_state-v3.bin.zst" },
-      filesystem: { baseurl: ARCH_HOST + "arch/" },
+      // Field name is initial_state in npm v86's typed API; copy.sh's main.js
+      // calls this `state`, but our vendored libv86.js (npm 0.5.334) expects
+      // initial_state — using `state` silently falls through to BIOS boot.
+      initial_state: { url: ARCH_HOST + "arch_state-v3.bin.zst" },
+      filesystem:    { baseurl: ARCH_HOST + "arch/" },
       net_device_type: "virtio",
       autostart: true,
     };
