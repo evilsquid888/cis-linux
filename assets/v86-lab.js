@@ -175,17 +175,24 @@ esac
       setStatus("booting", "loading wasm…");
       bootBtn.disabled = true;
 
+      // Default V86 config = vendored Buildroot Linux 4 (~7 MB).
+      // Lessons can fully replace this via opts.v86Config (e.g. for Arch
+      // Linux booted from a state snapshot at i.copy.sh).
+      const defaultConfig = {
+        wasm_path:        V86_BASE + "/v86.wasm",
+        memory_size:      64 * 1024 * 1024,
+        vga_memory_size:  2 * 1024 * 1024,
+        bios:     { url: V86_BASE + "/seabios.bin" },
+        vga_bios: { url: V86_BASE + "/vgabios.bin" },
+        cdrom:    { url: V86_BASE + "/linux4.iso" },
+        autostart: true,
+      };
+      const config = Object.assign({}, opts.v86Config || defaultConfig, {
+        screen_container: screenEl,
+      });
+
       try {
-        emulator = new V86({
-          wasm_path:        V86_BASE + "/v86.wasm",
-          memory_size:      64 * 1024 * 1024,
-          vga_memory_size:  2 * 1024 * 1024,
-          screen_container: screenEl,
-          bios:     { url: V86_BASE + "/seabios.bin" },
-          vga_bios: { url: V86_BASE + "/vgabios.bin" },
-          cdrom:    { url: V86_BASE + "/linux4.iso" },
-          autostart: true,
-        });
+        emulator = new V86(config);
       } catch (e) {
         console.error("[lab] V86 constructor threw:", e);
         setStatus("error", "init failed (see console)");
@@ -204,14 +211,18 @@ esac
         setStatus("error", "asset failed (see console)");
       });
       emulator.add_listener("emulator-loaded", () => {
-        setStatus("booting", "wasm loaded — booting kernel…");
+        setStatus("booting", "wasm loaded — preparing OS…");
       });
       emulator.add_listener("emulator-ready", () => {
-        setStatus("booting", "kernel booting…");
+        setStatus("booting", "almost ready…");
         const wait = typeof opts.postBootDelayMs === "number" ? opts.postBootDelayMs : 4500;
         setTimeout(async () => {
-          await sendToVm("\n");                       // dismiss "press enter for console"
-          await new Promise(r => setTimeout(r, 500));
+          // For Buildroot we send Enter to dismiss "press enter for console";
+          // for state-restored boots (Arch) it's a no-op (just an extra newline).
+          if (opts.dismissPrompt !== false) {
+            await sendToVm("\n");
+            await new Promise(r => setTimeout(r, 500));
+          }
           await runStage("staging lab…");
         }, wait);
       });
