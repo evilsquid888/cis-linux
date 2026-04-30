@@ -231,6 +231,59 @@ If a future image swap breaks loading, the status pill will tell you
 
 ---
 
+## 9. Hot-linking a pre-built distro state file does not work
+
+We tried to ship a "real distro" lab (lesson `02b-ssh-vm-arch.html`,
+since deleted) by hot-linking copy.sh's hosted Arch Linux state
+snapshot at `https://i.copy.sh/arch_state-v3.bin.zst` (CORS `*`,
+known good, 15.5 MB compressed). The plan was: instant boot via
+state restore, real OpenSSH, real systemd, no stub binaries.
+
+It didn't work. Two stacked problems:
+
+**(a) Field name in the V86 options object.**
+The v86 source on GitHub uses `state: { url: ... }` for the saved-state
+field, but the actual JS API in our vendored `libv86.js` (npm
+`v86@0.5.334`) expects **`initial_state`**. The "state" name in
+`copy/v86/src/browser/main.js` is the *external* profile config
+that gets translated into `initial_state` by their loader before
+calling `new V86(...)`. If you copy the profile config verbatim,
+v86 silently ignores `state`, autostarts with no disk, and SeaBIOS
+shows "No bootable device. Retrying in 60 seconds." Confirm with
+`grep "options.initial_state" assets/v86/libv86.js`.
+
+**(b) State-format version mismatch.**
+The `-v3` in the filename is a state-format version number. copy.sh
+generated it with their specific v86 build, which is a continuously-
+updated dev branch (`build/v86_all.js?<cachehash>`). The npm package
+`v86@0.5.334` is published from a different commit and won't accept
+`v3` state files — the load fails silently, again falling through to
+BIOS boot. There's no `-v4` or `-v5` hosted; only `-v3`.
+
+**Why we couldn't just vendor copy.sh's bundle to make formats
+match.** Their `build/v86_all.js` (251 KB) is the *full demo app
+bundle*, not a library: it contains UI handlers (`take_screenshot`,
+`mute`, filesystem panel), an xterm.js loader that calls
+`document.body.appendChild(b)` on script load, and a
+`history.pushState` for URL-based profile selection. Including it
+on a third-party page is unsafe and overkill. There is no separate
+"library only" build of copy.sh's current v86; only the single
+bundled all-in-one and the (older, format-incompatible) npm
+release.
+
+**The workable real-distro path is, then:**
+1. Build the disk image yourself (e.g., Lasimeri's Dockerfile +
+   `mmdebstrap` for Debian, or v86's `tools/docker/alpine/` for
+   Alpine), then
+2. Generate a fresh state snapshot using the same v86 build you
+   ship to the browser (Lasimeri's repo includes a
+   `generate-snapshot.html` for this — load the disk in v86, click
+   "Save Snapshot," ship the resulting file alongside the disk).
+
+Both steps require Docker locally. There is no shortcut.
+
+---
+
 ## When to add a new VM lesson
 
 1. Create `lessons/NNa-slug-vm.html` modeled on `02a-ssh-vm.html`.
