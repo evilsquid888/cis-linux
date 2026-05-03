@@ -100,8 +100,14 @@ function flushSave() {
 // Safety net: catch every navigation path (link click, back button,
 // tab close, hard refresh) and flush any pending save. localStorage
 // writes inside beforeunload are reliable in modern browsers.
+//
+// `resetting` is checked inside the listener so that resetState() can
+// suppress the flush — otherwise a pending debounce timer would write
+// STATE back to localStorage moments after we just removed it.
+let resetting = false;
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
+    if (resetting) return;
     if (saveTimer) flushSave();
   });
 }
@@ -122,6 +128,13 @@ function persist() { saveState(STATE); }
 // Reset
 function resetState() {
   if (!confirm("Reset all assessment progress? This can't be undone.")) return;
+  // Cancel any pending debounced save AND mark resetting=true so the
+  // beforeunload safety net doesn't undo us by writing STATE back.
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  resetting = true;
   localStorage.removeItem(STORAGE_KEY);
   location.reload();
 }
