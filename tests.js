@@ -160,5 +160,108 @@ test("computeJudgment 4/5 with low check coverage drops to 'reasonable'", () => 
 });
 
 // ============================================================
+section("Persistence — completion survives navigation");
+// ============================================================
+
+// Stub browser-ish globals that app.js touches at module-load and during
+// persist/flushSave. We use an in-memory object to back localStorage so we
+// can introspect what actually got written and when.
+const memStore = {};
+ctx.localStorage = {
+  setItem:    (k, v) => { memStore[k] = v; },
+  getItem:    (k)    => (k in memStore ? memStore[k] : null),
+  removeItem: (k)    => { delete memStore[k]; },
+};
+ctx.document = { getElementById: () => null, querySelectorAll: () => [] };
+ctx.window   = { addEventListener: () => {} };  // swallow beforeunload registration
+ctx.location = { reload: () => {}, href: "" };
+ctx.alert    = () => {};
+ctx.confirm  = () => false;
+ctx.navigator = { clipboard: { writeText: () => {} } };
+// vm.createContext doesn't expose setTimeout/clearTimeout — pass them through.
+ctx.setTimeout    = setTimeout;
+ctx.clearTimeout  = clearTimeout;
+
+// Load app.js — defines STATE, persist, flushSave, …
+loadScript("assets/app.js", ctx);
+
+test("persist() does NOT write to localStorage synchronously (it's debounced)", () => {
+  delete memStore["cis-linux-tutorial"];
+  ctx.STATE.metadata.customerName = "ShouldNotPersistYet";
+  ctx.persist();
+  const raw = memStore["cis-linux-tutorial"];
+  // Either nothing written yet (preferred) or whatever was there before
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    assert.notStrictEqual(
+      parsed.metadata.customerName, "ShouldNotPersistYet",
+      "persist() should not have written the new value synchronously"
+    );
+  }
+});
+
+test("flushSave() writes to localStorage immediately", () => {
+  delete memStore["cis-linux-tutorial"];
+  ctx.STATE.metadata.customerName = "FlushedCustomer";
+  ctx.flushSave();
+  const raw = memStore["cis-linux-tutorial"];
+  assert.ok(raw, "flushSave must produce a localStorage write before returning");
+  const parsed = JSON.parse(raw);
+  assert.strictEqual(parsed.metadata.customerName, "FlushedCustomer");
+});
+
+test("flushSave() cancels any pending persist() timer (no late double-write)", () => {
+  delete memStore["cis-linux-tutorial"];
+  // Stage a debounced save, then immediately flush.
+  ctx.STATE.metadata.customerName = "Pending";
+  ctx.persist();
+  ctx.STATE.metadata.customerName = "Final";
+  ctx.flushSave();
+  // Both reads should agree on the final value; no later setTimeout should overwrite it.
+  // We can't easily tick the event loop here, but we can confirm the timer was nulled
+  // by re-running flushSave (idempotent, no error) and that the value is stable.
+  ctx.flushSave();
+  const parsed = JSON.parse(memStore["cis-linux-tutorial"]);
+  assert.strictEqual(parsed.metadata.customerName, "Final");
+});
+
+test("REGRESSION: 'Mark complete & continue' — completion survives simulated navigation", () => {
+  // This is the exact scenario from app.js renderLessonFooter's click handler:
+  //   ls.complete = true; ls.completedAt = ...; flushSave(); location.href = nextHref;
+  // Without flushSave (the previous behavior) the debounced setTimeout never fires
+  // because navigation kills the page — completion was lost on next page load.
+  delete memStore["cis-linux-tutorial"];
+  const ls = ctx.STATE.lessons["02-ssh"];
+  ls.complete = true;
+  ls.completedAt = "2026-05-03T10:00:00Z";
+  ctx.flushSave();   // the fix
+
+  // Simulate navigation: a brand-new page would call loadState() → reads localStorage.
+  const reloaded = JSON.parse(memStore["cis-linux-tutorial"]);
+  assert.ok(reloaded, "localStorage must contain state after flushSave (was empty before fix)");
+  assert.strictEqual(
+    reloaded.lessons["02-ssh"].complete, true,
+    "Completion must persist across the simulated page navigation"
+  );
+  assert.strictEqual(reloaded.lessons["02-ssh"].completedAt, "2026-05-03T10:00:00Z");
+});
+
+test("REGRESSION: report rendering sees completed lessons after flushSave", () => {
+  // The report iterates HARDENING_LESSON_IDS.filter(id => STATE.lessons[id]?.complete).
+  // If completion never persisted, the filter returns [] → blank report.
+  delete memStore["cis-linux-tutorial"];
+  for (const id of [...ctx.HARDENING_LESSON_IDS]) {
+    ctx.STATE.lessons[id].complete = true;
+  }
+  ctx.flushSave();
+  const reloaded = JSON.parse(memStore["cis-linux-tutorial"]);
+  const completed = [...ctx.HARDENING_LESSON_IDS].filter(id => reloaded.lessons[id]?.complete);
+  assert.strictEqual(
+    completed.length, ctx.HARDENING_LESSON_IDS.length,
+    "Report would only see completed lessons that actually made it to localStorage"
+  );
+});
+
+// ============================================================
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

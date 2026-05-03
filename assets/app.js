@@ -76,8 +76,34 @@ function saveState(state) {
   saveTimer = setTimeout(() => {
     state.metadata.lastVisited = new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveTimer = null;
     showSaveStatus("saved");
   }, SAVE_DEBOUNCE_MS);
+}
+
+// ---- Synchronous flush ----
+// Cancels any pending debounced save and writes immediately. Call this
+// before any navigation that would otherwise lose the pending write
+// (e.g. clicking "Mark complete & continue" sets ls.complete = true,
+// then navigates — without flushSave the timeout never fires and the
+// completion is lost on next page load).
+function flushSave() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  STATE.metadata.lastVisited = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
+  showSaveStatus("saved");
+}
+
+// Safety net: catch every navigation path (link click, back button,
+// tab close, hard refresh) and flush any pending save. localStorage
+// writes inside beforeunload are reliable in modern browsers.
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    if (saveTimer) flushSave();
+  });
 }
 
 function showSaveStatus(status) {
@@ -311,8 +337,8 @@ function renderLessonFooter(lessonId) {
     if (!ls.complete) {
       ls.complete = true;
       ls.completedAt = new Date().toISOString();
-      persist();
     }
+    flushSave();   // sync — must happen before location.href steals control
     if (nextHref) location.href = nextHref;
     else alert("Course complete! Open Lesson 8 to generate your customer report.");
   };

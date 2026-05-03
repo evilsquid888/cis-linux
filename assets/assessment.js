@@ -154,9 +154,8 @@ function renderJudgment() {
 function generateReport() {
   STATE.report.generatedAt = new Date().toISOString();
   STATE.report.customerNameSnapshot = STATE.metadata.customerName || "Acme Corp";
-  persist();
-  // Navigate after a short delay to ensure persist has flushed
-  setTimeout(() => window.open("../report.html", "_blank"), SAVE_DEBOUNCE_MS + 50);
+  flushSave();   // sync — used to be a setTimeout dance; flushSave makes it deterministic
+  window.open("../report.html", "_blank");
 }
 
 function escapeHtml(s) {
