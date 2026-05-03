@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STIG SSH Crypto (with embedded Linux) — CIS Linux Tutorial</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <div id="header-host"></div>
+  <div class="layout">
+    <div id="sidebar-host"></div>
+    <main class="main main-lab">
+      <h1>Lesson 6a — STIG: Stricter SSH Crypto <span style="color: var(--accent); font-weight: 400;">· with embedded Linux</span></h1>
+      <div class="lesson-meta">
+        <span>DISA STIG</span>
+        <span>~12 min</span>
+        <span>3 controls</span>
+        <span><a href="06-stig-ssh-crypto.html" style="color: var(--text-muted);">← read-only edition</a></span>
+      </div>
+
+      <div class="lab-blurb">
+        Same content as Lesson 6, with an in-browser Linux VM you can type into. The lab boots a deliberately-weak <code>/etc/ssh/sshd_config</code> (no <code>Ciphers</code>/<code>MACs</code>/<code>KexAlgorithms</code> set — so OpenSSH defaults apply, including SHA1-MAC and other STIG no-nos). The stub <code>sshd</code> mimics OpenSSH's full default crypto menu so <code>sudo sshd -T</code> shows realistic "before" output.
+      </div>
+
+      <div class="lab-grid">
+
+        <div class="lab-instructions">
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🎯</span> Why this matters</h2>
+            <p>OpenSSH's defaults negotiate from a wide menu of ciphers, MACs, and key-exchange algorithms — including some that are old, weak, or not FIPS-approved. STIG locks the menu down to a FIPS 140-3-approved subset. Concretely: AES-CTR only (no CBC, no CHACHA20), HMAC-SHA2-256/512 only (no MD5 or SHA1 variants), modern ECDH or DH-group-exchange-SHA256 only.</p>
+
+            <details class="refresher">
+              <summary>📖 Tools and concepts used in this lesson</summary>
+              <p><strong>Cipher / MAC / KexAlgorithm</strong> — three sides of the SSH crypto triangle. <em>Cipher</em> encrypts the bulk traffic (AES-CTR). <em>MAC</em> authenticates each record (HMAC-SHA2). <em>KexAlgorithm</em> establishes the shared secret at session start (ECDH or DH-group-exchange-SHA256). Each is independently negotiated; weak choices in any of the three break the whole channel. <a href="https://www.openssh.com/specs.html" target="_blank" rel="noopener">OpenSSH protocol specs</a></p>
+              <p><strong>FIPS 140-3</strong> — NIST's standard for cryptographic modules. STIG values are the FIPS-approved subset of OpenSSH's algorithm catalog. <a href="https://csrc.nist.gov/publications/detail/fips/140/3/final" target="_blank" rel="noopener">FIPS 140-3 (NIST)</a></p>
+              <p><strong><code>sshd -T</code></strong> — dumps the effective runtime config including OpenSSH's compiled-in algorithm defaults. <a href="https://man7.org/linux/man-pages/man5/sshd_config.5.html" target="_blank" rel="noopener">man 5 sshd_config</a></p>
+              <p><strong><code>tee -a</code></strong> — read stdin, append to a file, also pass through. <code>sudo tee -a /etc/ssh/sshd_config &gt;/dev/null &lt;&lt;'EOF'</code> is the standard idiom for appending a config block to a root-owned file from a regular shell. <a href="https://man7.org/linux/man-pages/man1/tee.1.html" target="_blank" rel="noopener">man 1 tee</a></p>
+              <p><strong>Heredoc <code>&lt;&lt;'EOF'</code></strong> — single-quoted delimiter prevents shell expansion of <code>$vars</code> inside the body. Use whenever shipping a config block verbatim.</p>
+            </details>
+
+            <details class="refresher">
+              <summary>📚 Reference material — going deeper</summary>
+              <ul>
+                <li><a href="https://public.cyber.mil/stigs/downloads/" target="_blank" rel="noopener">DISA STIG downloads</a> — official Ubuntu 24.04 STIG checklist</li>
+                <li><a href="https://infosec.mozilla.org/guidelines/openssh" target="_blank" rel="noopener">Mozilla OpenSSH Guidelines</a> — "Modern" profile is roughly equivalent to STIG</li>
+                <li><a href="https://www.ssh-audit.com/" target="_blank" rel="noopener">ssh-audit</a> — automated cipher/MAC/KEX scanner</li>
+                <li><a href="https://stribika.github.io/2015/01/04/secure-secure-shell.html" target="_blank" rel="noopener">"Secure Secure Shell" (stribika)</a></li>
+                <li><a href="https://www.iana.org/assignments/ssh-parameters/ssh-parameters.xhtml" target="_blank" rel="noopener">IANA SSH parameter registry</a></li>
+              </ul>
+            </details>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔍</span> Audit</h2>
+            <p>The lab starts with no explicit <code>Ciphers</code>/<code>MACs</code>/<code>KexAlgorithms</code> in <code>/etc/ssh/sshd_config</code>, so the stub <code>sshd -T</code> falls back to OpenSSH's full default menu — including SHA1-MAC and CHACHA20 cipher, both flagged by STIG.</p>
+            <pre><code>sudo sshd -T | grep -iE '^(ciphers|macs|kexalgorithms)'</code></pre>
+            <button class="send-cmd" data-cmd="sudo sshd -T | grep -iE '^(ciphers|macs|kexalgorithms)'">▸ Send to VM</button>
+
+            <p style="margin-top:14px;">Compare to STIG-required values:</p>
+            <ul>
+              <li><code>ciphers aes256-ctr,aes192-ctr,aes128-ctr</code></li>
+              <li><code>macs hmac-sha2-512,hmac-sha2-256</code></li>
+              <li><code>kexalgorithms ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256</code></li>
+            </ul>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">🔧</span> Remediate</h2>
+            <p>Append the three STIG-mandated lines to <code>/etc/ssh/sshd_config</code>, then reload the daemon:</p>
+            <pre><code>sudo tee -a /etc/ssh/sshd_config &gt;/dev/null &lt;&lt;'EOF'
+
+# DISA STIG — restrict SSH crypto to FIPS-approved subset
+Ciphers aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512,hmac-sha2-256
+KexAlgorithms ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256
+EOF
+
+sudo systemctl reload ssh</code></pre>
+            <button class="send-cmd" data-cmd-key="remediate">▸ Send to VM</button>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+              The lab's <code>systemctl</code> is a stub. <code>sshd -T</code> re-parses the config every invocation, so reload isn't required to verify here.
+            </p>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">✅</span> Verify</h2>
+            <p>Re-run the audit. The three lines should now show only the FIPS-approved values:</p>
+            <pre><code>sudo sshd -T | grep -iE '^(ciphers|macs|kexalgorithms)'</code></pre>
+            <button class="send-cmd" data-cmd="sudo sshd -T | grep -iE '^(ciphers|macs|kexalgorithms)'">▸ Send to VM</button>
+
+            <pre style="margin-top: 12px;"><code># Expected:
+ciphers aes256-ctr,aes192-ctr,aes128-ctr
+kexalgorithms ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256
+macs hmac-sha2-512,hmac-sha2-256</code></pre>
+
+            <ul class="check-list" id="checks-host"></ul>
+          </div>
+
+          <div class="lesson-block">
+            <h2><span class="block-icon">📋</span> Assessor notes (optional)</h2>
+            <textarea id="lesson-notes" placeholder="Note the original cipher list — useful evidence for the report."></textarea>
+          </div>
+
+          <div id="lesson-footer-host"></div>
+        </div>
+
+        <aside class="vm-panel" id="vm-panel">
+          <div class="vm-toolbar">
+            <button id="vm-boot">▶ Boot VM</button>
+            <button id="vm-stage" disabled title="Re-plant /etc/ssh/sshd_config (no crypto lines)">↻ Reset scenario</button>
+            <button id="vm-clear" disabled title="Clear the screen">⌫ Clear</button>
+            <span id="vm-status" class="vm-status s-stopped">stopped</span>
+          </div>
+          <div id="vm_screen" class="vm-screen" tabindex="0">
+            <div></div><canvas></canvas>
+          </div>
+          <div class="vm-input">
+            <span>$</span>
+            <input id="vm-input-line" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   placeholder="Type and press Enter to send to VM" disabled>
+          </div>
+          <div class="vm-hint">
+            Stub <code>sshd -T</code> mimics OpenSSH's compile-time defaults for <code>Ciphers</code>, <code>MACs</code>, <code>KexAlgorithms</code> when those directives are absent — so the "before" audit shows the full negotiation menu, just like a real Ubuntu host.
+          </div>
+        </aside>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/v86/libv86.js"></script>
+  <script src="../assets/lesson-00.js"></script>
+  <script src="../assets/lesson-01.js"></script>
+  <script src="../assets/lesson-02.js"></script>
+  <script src="../assets/lesson-03.js"></script>
+  <script src="../assets/lesson-04.js"></script>
+  <script src="../assets/lesson-05.js"></script>
+  <script src="../assets/lesson-06.js"></script>
+  <script src="../assets/lesson-07.js"></script>
+  <script src="../assets/lesson-08.js"></script>
+  <script src="../assets/lesson-09.js"></script>
+  <script src="../assets/lessons.js"></script>
+  <script src="../assets/app.js"></script>
+  <script src="../assets/v86-lab.js"></script>
+
+  <script>
+    initPage("06-stig-ssh-crypto");
+    const checks = LESSONS_BY_ID["06-stig-ssh-crypto"].checks;
+    document.getElementById("checks-host").innerHTML = checks.map(c => `
+      <li>
+        <input type="checkbox" class="check-toggle" id="chk-${c.id}" data-check-id="${c.id}">
+        <label for="chk-${c.id}">
+          <strong>${c.label}</strong>
+          <span class="severity severity-${c.severity}">${c.severity}</span>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${c.controlRef}</div>
+        </label>
+      </li>`).join("");
+    bindLessonChecks("06-stig-ssh-crypto");
+
+    // ────────────────────────────────────────────────────────────────
+    // Lesson 6 scenario: weak sshd_config (no crypto directives) +
+    // stub sshd that knows OpenSSH's compile-time crypto defaults so
+    // the "before" audit shows the realistic full default menu.
+    // ────────────────────────────────────────────────────────────────
+    const WEAK_SSHD_CONFIG = `# /etc/ssh/sshd_config — lab stub (no crypto lines = OpenSSH defaults apply)
+PermitRootLogin no
+PasswordAuthentication no
+MaxAuthTries 4
+ClientAliveInterval 300
+ClientAliveCountMax 2
+Port 22
+Protocol 2
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+X11Forwarding yes
+`;
+
+    // Stub sshd extended to know OpenSSH's compile-time defaults for
+    // Ciphers, MACs, KexAlgorithms (modern OpenSSH 9.x list, lifted
+    // straight from upstream sshd_config(5)).
+    const STUB_SSHD = `#!/bin/sh
+CONFIG=/etc/ssh/sshd_config
+case "$1" in
+  -T)
+    awk '
+      BEGIN {
+        # Basic CIS directives
+        d["permitrootlogin"]         = "yes"
+        d["passwordauthentication"]  = "yes"
+        d["maxauthtries"]            = "6"
+        d["clientaliveinterval"]     = "0"
+        d["clientalivecountmax"]     = "3"
+        d["port"]                    = "22"
+        d["protocol"]                = "2"
+        d["pubkeyauthentication"]    = "yes"
+        d["permitemptypasswords"]    = "no"
+        d["x11forwarding"]           = "yes"
+        d["usepam"]                  = "yes"
+        # Modern OpenSSH compile-time crypto defaults (the menu STIG narrows)
+        d["ciphers"] = "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com"
+        d["macs"]    = "umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1"
+        d["kexalgorithms"] = "sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256"
+      }
+      /^[[:space:]]*#/ { next }
+      NF == 0          { next }
+      {
+        key = tolower($1)
+        val = ""
+        for (i=2; i<=NF; i++) val = (val == "" ? $i : val " " $i)
+        d[key] = val
+      }
+      END { for (k in d) printf "%s %s\\n", k, d[k] }
+    ' "$CONFIG" | sort
+    ;;
+  -t) echo "Configuration syntax OK (lab stub)" ;;
+  -h|--help|"") echo "Lab sshd stub. Use 'sshd -T' for effective config, 'sshd -t' for syntax check." ;;
+  *) echo "Lab sshd stub: unsupported flag $1" ; exit 1 ;;
+esac
+`;
+
+    function stage() {
+      return [
+        VmLab.commonScaffolding(),
+        VmLab.writeFile("/etc/ssh/sshd_config", WEAK_SSHD_CONFIG),
+        VmLab.writeExecutable("/usr/local/bin/sshd", STUB_SSHD),
+        "clear",
+        'echo "Lab ready. Try: sudo sshd -T | grep -iE \'^(ciphers|macs|kexalgorithms)\'"',
+      ].join("\n");
+    }
+
+    function remediate() {
+      // The lesson's heredoc, sent as one chunk via the chunked sendToVm.
+      return [
+        "sudo tee -a /etc/ssh/sshd_config >/dev/null <<'EOF'",
+        "",
+        "# DISA STIG — restrict SSH crypto to FIPS-approved subset",
+        "Ciphers aes256-ctr,aes192-ctr,aes128-ctr",
+        "MACs hmac-sha2-512,hmac-sha2-256",
+        "KexAlgorithms ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group16-sha512,diffie-hellman-group-exchange-sha256",
+        "EOF",
+        "",
+        "sudo systemctl reload ssh",
+      ].join("\n");
+    }
+
+    VmLab.init({ stage, commandHandlers: { remediate } });
+  </script>
+</body>
+</html>
